@@ -1,0 +1,394 @@
+<!DOCTYPE html><html><head>
+    
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <meta http-equiv="Pragma" content="no-cache">
+      <meta http-equiv="Cache-Control" content="no-cache">
+      <meta http-equiv="Expires" content="0">
+      <meta http-equiv="Content-Language" content="ja">
+      <meta name="viewport" content="width=100%, initial-scale=1, minimum-scale=1">
+      <meta name="ROBOTS" content="NOINDEX,NOFOLLOW,NOARCHIVE">
+      <link rel="stylesheet" type="text/css" href="/assets/css/common.css?i_dum=1792335287">
+      <link rel="shortcut icon" href="/assets/images/favicon/shinjukubilingualpha.ico">
+      <link rel="stylesheet" href="/assets/js/jquery-ui/themes/ui-lightness/jquery-ui.css">
+      <link rel="stylesheet" href="/assets/js/jquery-ui/themes/ui-lightness/theme.css">
+      <style type="text/css"><!--
+        .titleDiv{ background-image:url('/assets/images/header2.jpg'); }
+      --></style>
+      <link href="https://fonts.googleapis.com/css?family=Sansita+One" rel="stylesheet" type="text/css">
+      <script src="/assets/js/jquery/jquery.min.js"></script>
+      <script src="/assets/js/jquery-ui/jquery-ui.js"></script>
+      <script type="text/javascript" src="/assets/js/common.js?i_dum=1792335287"></script>
+      <style type="text/css"><!--
+        .btnNormal{
+          /* 余白を指定 */
+          padding: 2px 2px;
+          height:35px;
+
+          border: 1px solid #3079ed;
+          border: 1px solid navy;
+          color: #fff;
+          text-shadow: 0 1px rgba(0,0,0,0.1);
+          background-color: #4d90fe;
+          background-image: -webkit-linear-gradient(top,#4d90fe,#4787ed);
+          background-image: -moz-linear-gradient(top,#4d90fe,#4787ed);
+          background-image: -ms-linear-gradient(top,#4d90fe,#4787ed);
+          background-image: -o-linear-gradient(top,#4d90fe,#4787ed);
+          background-image: linear-gradient(top,#4d90fe,#4787ed);
+
+          background-image: -webkit-linear-gradient(top,#4169e1,#4169e1);
+          background-image: -moz-linear-gradient(top,#4169e1,#4169e1);
+          background-image: -ms-linear-gradient(top,#4169e1,#4169e1);
+          background-image: -o-linear-gradient(top,#4169e1,#4169e1);
+          background-image: linear-gradient(top,#4169e1,#4169e1);
+
+
+          /* 角丸の指定 */
+          -moz-border-radius: 8px;
+          -webkit-border-radius: 8px;
+          border-radius: 8px;
+        }
+      --></style>
+    
+        <style type="text/css"><!--
+          .submitBtn:hover {
+            border: 1px solid #2f5bb7;
+            color: #fff;
+            background-color: #357ae8;
+            background-image: -webkit-linear-gradient(top,#4d90fe,#4787ed);
+            background-image: -moz-linear-gradient(top,#4d90fe,#4787ed);
+            background-image: -ms-linear-gradient(top,#4d90fe,#4787ed);
+            background-image: -o-linear-gradient(top,#4d90fe,#4787ed);
+            background-image: linear-gradient(top,#4d90fe,#4787ed);
+          }
+        --></style>
+        <title>新宿バイリンガル</title>
+  <style type="text/css"><!--
+    .labelTd {background-color: bisque;}
+    .contents { color:blue; font-size:18px; font-weight:bold; white-space:nowrap;}
+    /* ▼アコーディオン */
+    div.accordion { width:100%; }
+    div.accordion > ul > li > a {
+      display: block;
+      color: blue;
+      font-size: 18px;
+      font-weight: bold;
+      text-decoration: none;
+      background-color: #6ab5c8;
+      background-color: bisque;
+      background-color: lightsteelblue;
+      cursor: pointer;
+      padding: 15px 18px;
+      position: relative;
+    }
+    div.accordion > ul > li > a:hover{
+      background-color : #5997a7;
+      background-color : mediumblue;
+      color : white;
+    }
+    div.accordion > ul > li > a:after, div.accordion > ul > li > a.active:after{
+      position: absolute;
+      right: 12px;
+      top: 16px;
+    }
+    div.accordion > ul > li > a:after       { content: "▼"; }
+    div.accordion > ul > li > a.active:after{ content: "▲"; }
+    div.accordion > ul > li > ul { display: none; }
+    div.accordion > ul > li > ul > li > a{
+      font-size: 18px;
+      font-weight: bold;
+      display: block;
+      color: blue;
+      text-decoration: none;
+      background-color: #79c9b8;
+      background-color: bisque;
+      border-bottom: 1px solid #fff;
+      padding: 9px 18px;
+      position: relative;
+    }
+    div.accordion > ul > li > ul > li > a:hover{
+      background-color: #67ab9c;
+      background-color: lightpink;
+    }
+    ul { padding: 0; margin: 0;}
+    li { padding: 0; margin: 0; list-style-position:outside; }
+
+          .contents { width:250px;}
+      .menuTd { border:solid 1px gray;}
+      .imgtd { width:45px;}
+      .historyTd{ height:40px; }
+    
+  --></style>
+  <script type="text/javascript"><!--
+    function showPositionList()   { wOpen("positionList.php"); }
+    function showMemberList4o()   { wOpen("memberList.php?isOfficer=1"); }
+    function showGuestListList()  { wOpen("mtgGuestList.php"); }
+    function showRoomList()       { wOpen("placeList.php"); }
+    function showMtgList()        { wOpen("mtgList.php?isOfficer=1"); }
+    function showRoleList()       { wOpen("roleList.php"); }
+    function showSummary()        { wOpen("summary.php"); }
+    function showBasicAuthInput()        { wOpen("basicAuthInput.php"); }
+    function showMtgList4hp()    { wOpen("mtgList4hp.php"); }
+    // ▼詳細画面表示
+    function showDetail(i_mtgid) {
+      wOpen("mtgDetail.php?mtgid=" + i_mtgid);
+    }
+
+    // ▼表示モード変更
+    function changeDisp() {
+      getEle("regFlg").value = 6;
+      lockDisp();
+      getEle("form0").submit();
+    }
+
+    // ▼footer調整
+    function resetFooter() {
+      var footerId = "footerTbl";
+    }
+
+    // ▼アコーディオン
+    var gl_lock = 0;
+    $(function() {
+      function accordion() {
+        // ロックされている場合はなにもしない（連打対策）
+        if(gl_lock == 1){
+          return;
+        }
+        // ロックをかける
+        gl_lock = 1;
+        // アコーディオンdivの高さを固定（メニュースライド中にフッター連動するのがカッコ悪いため。divの高さ固定しておくと連動しなくなる）
+        $("#accordion").height($("#accordion").height());
+        // スライド表示
+        // 第1引数はスライドにかける時間（ミリ秒）
+        // 第2引数はコールバック関数（アコーディオンdivの高さをautoに戻し、フッター表示位置をリセット、ロックを解除）
+        $(this).toggleClass("active").next().slideToggle(600, function(){ $("#accordion").height("auto"); resetFooter(); gl_lock = 0; $(window).scrollTop($("#accordion").offset().top);});
+      }
+      $(".accordion .toggle").on("click", accordion);
+    });
+    //--></script>
+</head>
+<body>
+<script type="text/javascript"><!--
+  lockDisp("処理中です。<br>しばらくお待ちください。<br><br>30秒以上時間がかかる場合は<br>画面を１度閉じて<br>再表示してください。");
+//--></script>
+<form id="form0" method="post">
+<input type="hidden" id="regFlg" name="regFlg" value="">
+
+    <div class="titleDiv"><span>
+      <div class="nowrap"><table><tbody><tr><td><div class="nowrap titleDiv2"><h1>新宿バイリンガル&nbsp;<span style="font-family: 'Sansita One', cursive; font-weight:normal;">Club&nbsp;Support&nbsp;System</span><div style="font-size:16px;line-height:15px;margin-top:5px;"><button class="tmcBtn" type="button" onclick="wOpen(&quot;https://sites.google.com/toastmasters-japan.org/d76members-j/home-jp/PathwaysSupport?authuser=0&quot;, 1);" style="font-size:16px;">About Pathways<br>Pathwaysについて</button>&nbsp;&nbsp;<button class="tmcBtn" type="button" onclick="wOpen(&quot;https://www.toastmasters.org/pathways/basecamporpathways/&quot;, 1);" style="font-size:16px;">Go to Base Camp<br>BaseCampへ</button></div></h1></div></td><td>&nbsp;&nbsp;<img src="/assets/images/Halloween4.png" width="225" height="149" alt=""></td></tr></tbody></table></div>    </span></div>
+  
+      <div style="margin:8px; padding:6px 10px; background-color:#FFF9E6; border:1px solid #FFD700; border-radius:5px; font-size:14px; line-height:1.6;">
+          <div>
+        🚀 【System Update Completed】The system update has been completed. If you find any issues, please contact us using the form below: <a href="https://docs.google.com/forms/d/e/1FAIpQLScPBnK7t0BZn0Vr5__1yu9x5DX_V2jKf-BpEF1au5p3H0hi4w/viewform" target="_blank">📝 Inquiry Form (Google Forms)</a><br>🚀 【システムアップデート完了】システムアップデートが完了いたしました。何か不具合などがありましたら、以下のフォームからご連絡をお願いいたします。<a href="https://docs.google.com/forms/d/e/1FAIpQLScPBnK7t0BZn0Vr5__1yu9x5DX_V2jKf-BpEF1au5p3H0hi4w/viewform" target="_blank">📝 お問い合わせ（Googleフォーム）</a>      </div>
+      </div>
+    
+        <div class="contentDiv">
+  
+      
+  <div>
+              <table id="tbl" class="menuTbl"><tbody><tr><td valign="top">
+          <table cellpadding="5" class="menuTbl labelTd">
+                          <tbody><tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showPartList();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">Attendance<br>出欠表</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showMemberList();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">Members' List<br>会員一覧</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showRoleDetail();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">Role Explanation<br>役割説明</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showRoleAsignList();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">Assignment<br>役割アサイン一覧</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showSpeachEvalList();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">List of Speech &amp; Evaluator<br>スピーチ・論評一覧</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showLink();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">Links<br>リンク</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showGuidance();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/guide2.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">Contact<br>連絡先</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                  <tr>
+               <td class="linkTd nowrap labelTd menuTd" onclick="showHistory();;">
+                 <table><tbody><tr height="55px">
+                   <td class="imgtd" align="center"><img src="/assets/images/pen4b.gif" alt=""></td>
+                   <td class="contents nowrap" valign="middle" nowrap="">System Update<br>システム更新履歴</td>
+                 </tr></tbody></table>
+               </td>
+             </tr>                      </tbody></table>
+      <br>
+      <div class="accordion" id="accordion">
+　      <ul>
+          <li style="list-style-type:none;">
+            <a class="toggle">For Officers<br>役員メニュー</a>
+            <ul style="list-style-type:none;">
+              <li style="list-style-type:none;" class="nowrap" onclick="showMtgList();"><a href="javascript:void(0)">Regular Meetings<br>例会一覧</a></li>
+              <li style="list-style-type:none;" class="nowrap" onclick="showMemberList4o();"><a href="javascript:void(0)">Members' List<br>会員一覧</a></li>
+<!--
+              <li style="list-style-type:none;" class="nowrap" onClick="showPositionList();"  ><a href="javascript:void(0)">役員一覧</a></li>
+-->
+              <li style="list-style-type:none;" class="nowrap" onclick="showRoomList();"><a href="javascript:void(0)">Venue<br>開催場所会議室一覧</a></li>
+              <li style="list-style-type:none;" class="nowrap" onclick="showRoleList();"><a href="javascript:void(0)">Roles<br>役割一覧</a></li>
+              <li style="list-style-type:none;" class="nowrap" onclick="showGuestListList();"><a href="javascript:void(0)">Guests<br>ゲスト一覧</a></li>
+              <li style="list-style-type:none;" class="nowrap" onclick="showSummary();   "><a href="javascript:void(0)">Annual Progress<br>年間実績集計</a></li>
+              <li style="list-style-type:none;" class="nowrap" onclick="showBasicAuthInput();"><a href="javascript:void(0)">Access Settings<br>アクセス制限設定</a></li>
+                          </ul>
+          </li>
+        </ul>
+      </div>
+          </td>
+          <td>&nbsp;&nbsp;</td>
+      <td valign="top">
+        <fieldset>
+          <legend>【Upcoming】【今後の予定】</legend>
+          <div>Click a Meeting Title item, a corresponding role confirmation page will be shown.<br>例会名をクリックすると役割確認ができる画面を表示します</div>
+          <table class="tableCommon">
+            <tbody><tr>
+              <th class="titleList">Date<br>開催日</th>
+              <th class="titleList">Meeting Title<br>例会名</th>
+              <th class="titleList">Remarks<br>備考</th>
+              <th class="titleList">Venue<br>開催場所</th>
+              <th class="titleList">Meeting Room<br>会議室</th>
+            </tr>
+                          <tr>
+                <td class="nowrap">2026/11/05</td>
+                <td class="nowrap"><a href="javascript:void(0)" onclick="showDetail(259); return false;">The 386th Meeting<br>
+第386回例会</a></td>
+                <td class="nowrap"></td>
+                <td class="nowrap"><a href="https://tsunohazucc.com/" target="_blank">Tsunohazu Chiiki Center<br>
+角筈地域センター</a></td>
+                <td class="nowrap">RoomA<br>
+会議室A</td>
+              </tr>
+                          <tr>
+                <td class="nowrap">2026/11/19</td>
+                <td class="nowrap"><a href="javascript:void(0)" onclick="showDetail(260); return false;">The 387th Meeting<br>
+第387回例会</a></td>
+                <td class="nowrap"></td>
+                <td class="nowrap"><a href="https://tsunohazucc.com/" target="_blank">Tsunohazu Chiiki Center<br>
+角筈地域センター</a></td>
+                <td class="nowrap">RoomA<br>
+会議室A</td>
+              </tr>
+                          <tr>
+                <td class="nowrap">2026/12/03</td>
+                <td class="nowrap"><a href="javascript:void(0)" onclick="showDetail(261); return false;">The 388th Meeting<br>
+第388回例会</a></td>
+                <td class="nowrap"></td>
+                <td class="nowrap"></td>
+                <td class="nowrap"></td>
+              </tr>
+                          <tr>
+                <td class="nowrap">2026/12/17</td>
+                <td class="nowrap"><a href="javascript:void(0)" onclick="showDetail(262); return false;">The 389th Meeting<br>
+第389回例会</a></td>
+                <td class="nowrap">クリスマス例会（予定）</td>
+                <td class="nowrap"></td>
+                <td class="nowrap"></td>
+              </tr>
+                          <tr>
+                <td class="nowrap">2027/01/07</td>
+                <td class="nowrap"><a href="javascript:void(0)" onclick="showDetail(263); return false;">The 390th Meeting<br>
+第390回例会</a></td>
+                <td class="nowrap">Jスピーチマラソン兼選考会（仮）</td>
+                <td class="nowrap"></td>
+                <td class="nowrap"></td>
+              </tr>
+                      </tbody></table>
+        </fieldset>
+      </td>
+        </tr></tbody></table>
+      </div>
+
+  <br>
+    </div>
+    
+
+<div id="footerTbl00" style="margin-top: 0px;">
+
+<div>
+<table cellpadding="5px" align="left" style="margin:0px;width:100%; height:80px;; background-image:url('/assets/images/footer2.jpg'); background-size:contain; background-repeat:repeat-x; background-color:aliceblue;">
+  <tbody><tr><td align="left">
+    <table><tbody><tr><td valign="middle" nowrap="">
+      <div style="margin-top:5px;margin-bottom:5px;white-space:nowrap;"><a href="javascript:void(0);" onclick="toTop();return false;">▲To Top&nbsp;/&nbsp;このページの先頭へ</a></div>      <hr style="margin-top:15px;margin-bottom:15px;width:100%;border-top: 1px solid silver;">Display Mode：PC&nbsp;|&nbsp;<a href="javascript:void(0)" onclick="changeDisp(); return false;">Mobile</a>      <hr style="margin-top:15px;margin-bottom:15px;width:100%;border-top: 1px solid silver;"><div style="font-size:15px;line-height:15px;margin-top:5px;"><button class="tmcBtn" type="button" onclick="wOpen(&quot;https://sites.google.com/toastmasters-japan.org/d76members-j/home-jp/PathwaysSupport?authuser=0&quot;, 1);">About Pathways<br>Pathwaysについて</button></div>      <hr style="margin-top:15px;margin-bottom:15px;width:100%;border-top: 1px solid silver;"><table><tbody><tr><td valign="middle"><div style="line-height:10px;font-size:14px;"><img src="/assets/images/logo2.png" alt="" width="257px" height="104px"><br><div style="margin-top:5px;margin-bottom:5px;white-space:nowrap;">Powered by <a href="javascript:void(0);" onclick="showPr();return false;">Club Support System</a></div></div></td><td width="50px"><br></td><td valign="middle"><table cellpadding="0px"><tbody><tr><td colspan="2">【About Club Support System】</td></tr><tr><td valign="top">・</td><td style="font-size:14px;white-space:normal;">This is unofficial system developed by volunteer members.</td></tr><tr><td valign="top">・</td><td style="font-size:14px;white-space:normal;">It's nothing to do with Toastmasters International / District.</td></tr><tr><td valign="top">・</td><td style="font-size:14px;white-space:normal;">Contact us from <a href="javascript:void(0);return false:" onclick="showGuidance();">here</a>.</td></tr></tbody></table><br><table cellpadding="0px"><tbody><tr><td colspan="2">【Club Support Systemについて】</td></tr><tr height="5px"><td valign="top">・</td><td style="font-size:14px;white-space:normal;">有志のメンバーが作成した非公式システムです。</td></tr><tr height="5px"><td valign="top">・</td><td style="font-size:14px;white-space:normal;">国際本部やディストリクトとは一切関係ありません。</td></tr><tr><td valign="top">・</td><td style="font-size:14px;white-space:normal;">お問い合わせは<a href="javascript:void(0);return false:" onclick="showGuidance();">こちら</a>。</td></tr></tbody></table></td></tr></tbody></table>      <hr style="margin-top:15px;margin-bottom:15px;width:100%;border-top: 1px solid silver;">Copyright © 2018 Shinjuku Bilingual Toastmasters Club All rights reserved.    </td></tr></tbody></table>
+  </td></tr>
+</tbody></table>
+</div>
+
+</div>
+
+<div style="display:none;">
+<input type="hidden" id="isMobile" value="0">
+<input type="hidden" id="maskMsg" value="処理中です。&lt;br&gt;しばらくお待ちください。&lt;br&gt;&lt;br&gt;30秒以上時間がかかる場合は&lt;br&gt;画面を１度閉じて&lt;br&gt;再表示してください。">
+</div>
+
+<script type="text/javascript">
+      (function() {
+        var wk_key       = "newsPopupShown_7";
+        var wk_expireMs  = 1000 * 60 * 60 * 24 * 14; // 14日間は再表示しない
+        function shouldShow() {
+          try {
+            var wk_last = localStorage.getItem(wk_key);
+            return !wk_last || (Date.now() - parseInt(wk_last, 10)) > wk_expireMs;
+          } catch (e) { return true; }
+        }
+        function markShown() {
+          try { localStorage.setItem(wk_key, String(Date.now())); } catch (e) {}
+        }
+        $(function() {
+          if (!shouldShow()) { return; }
+          var $dlg = $("#dialog4newsPopup").dialog({
+            modal: true,
+            width: 500,
+            draggable: false,
+            buttons: { "Close　閉じる": function() { $(this).dialog("close"); } }
+          });
+          // ▼横に長い表など、ページ側の自動スクロールとjQuery UIの位置計算がズレて
+          //   画面外に表示されるのを防ぐため、スクロール位置に依存しない画面中央固定に上書き
+          $dlg.dialog("widget").css({
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            margin: 0,
+            transform: "translate(-50%, -50%)",
+            maxWidth: "95vw",
+            maxHeight: "90vh"
+          });
+          // ▼スマホ等、画面幅が狭い場合にはみ出さないようレスポンシブ対応
+          $dlg.css({ maxHeight: "65vh", overflow: "auto" });
+          markShown();
+        });
+      })();
+    </script>
+</form>
+
+
+<div tabindex="-1" role="dialog" aria-modal="true" class="ui-dialog ui-corner-all ui-widget ui-widget-content ui-front ui-dialog-buttons ui-resizable" aria-describedby="dialog4newsPopup" aria-labelledby="ui-id-1" style="position: fixed; height: auto; width: 500px; top: 50%; left: 50%; z-index: 101; margin: 0px; transform: translate(-50%, -50%); max-width: 95vw; max-height: 90vh;"><div class="ui-dialog-titlebar ui-corner-all ui-widget-header ui-helper-clearfix"><span id="ui-id-1" class="ui-dialog-title">Notice　お知らせ</span><button type="button" class="ui-button ui-corner-all ui-widget ui-button-icon-only ui-dialog-titlebar-close" title="Close"><span class="ui-button-icon ui-icon ui-icon-closethick"></span><span class="ui-button-icon-space"> </span>Close</button></div><div id="dialog4newsPopup" style="width: auto; min-height: 4.306px; max-height: 65vh; height: auto; overflow: auto;" class="ui-dialog-content ui-widget-content"><div>🚀 【System Update Completed】The system update has been completed. If you find any issues, please contact us using the form below: <a href="https://docs.google.com/forms/d/e/1FAIpQLScPBnK7t0BZn0Vr5__1yu9x5DX_V2jKf-BpEF1au5p3H0hi4w/viewform" target="_blank">📝 Inquiry Form (Google Forms)</a><br>🚀 【システムアップデート完了】システムアップデートが完了いたしました。何か不具合などがありましたら、以下のフォームからご連絡をお願いいたします。<a href="https://docs.google.com/forms/d/e/1FAIpQLScPBnK7t0BZn0Vr5__1yu9x5DX_V2jKf-BpEF1au5p3H0hi4w/viewform" target="_blank">📝 お問い合わせ（Googleフォーム）</a></div></div><div class="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix"><div class="ui-dialog-buttonset"><button type="button" class="ui-button ui-corner-all ui-widget">Close　閉じる</button></div></div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div></div><div class="ui-widget-overlay ui-front" style="z-index: 100;"></div></body></html>

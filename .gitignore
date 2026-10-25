@@ -1,0 +1,13 @@
+.venv/
+.tmp/
+.project-memory/
+cache/
+logs/
+output/
+__pycache__/
+
+# 実データ・個人用ファイル（公開しない）
+samples/
+任务.md
+CLAUDE.local.md
+config/zoom.txt
