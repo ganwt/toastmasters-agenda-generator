@@ -273,3 +273,14 @@ function objectiveLayout(objectives) {
   }
   return { cells: cells, hideRows: hideRows, extraSlots: Math.max(0, objectives.length - OBJECTIVE_SLOTS.length) };
 }
+
+// 例会ページのスピーチ → PROJECTS（src/projects.js）の該当プロジェクト。
+// 新形式のリンクにある行番号を優先し、無ければプロジェクト名（日英どちらでも）で探す
+function findProjectInfo(speech, projects) {
+  var norm = function (s) { return (s || '').replace(/\s+/g, '').toLowerCase(); };
+  var byRow = projects.filter(function (p) { return speech.project_row && p.row === speech.project_row; })[0];
+  if (byRow) return byRow;
+  var name = norm(speech.project);
+  if (!name) return null;
+  return projects.filter(function (p) { return norm(p.name_ja) === name || norm(p.name_en) === name; })[0] || null;
+}

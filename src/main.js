@@ -91,6 +91,9 @@ function applyPlan(ss, plan) {
   var lastRow = 8 + layout.extraSlots * 2;
   if (obj.getMaxRows() > lastRow) obj.deleteRows(lastRow + 1, obj.getMaxRows() - lastRow);
   if (obj.getMaxColumns() > 3) obj.deleteColumns(4, obj.getMaxColumns() - 3);
+  // テンプレートの字体「BIZ UDPゴシック」（日本語名）は Google では別の字体で表示され、
+  // 折り返し位置の計算と PDF の描画がずれて行末が欠ける。Google Fonts の同じ字体名に置き換える
+  obj.getRange(2, 2, lastRow - 1, 2).setFontFamily('BIZ UDPGothic');
   layout.hideRows.forEach(function (r) { obj.hideRows(r); });
   obj.hideRows(1); // 印刷範囲（B2 以降）の外にあるクラブミッションの行
 }
@@ -117,7 +120,7 @@ function createProgramFromMeeting(meeting) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var settings = readSettings(ss);
   var folder = folderFromUrl(settings.folderUrl);
-  var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: null });
+  var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, PROJECTS); } });
 
   var copyFile = DriveApp.getFileById(ss.getId()).makeCopy(plan.fileName, folder);
   var copy = SpreadsheetApp.openById(copyFile.getId());

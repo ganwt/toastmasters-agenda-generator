@@ -66,7 +66,8 @@
 - `https://docs.google.com/spreadsheets/d/1ku8Aspg64CnHnyuFV3JD-d_3APnX56VxT_Z2pM3OEMw/edit?gid=827204203`
 - 主な列：A = プロジェクト番号、B = Level、C = 英語プロジェクト名、D = 日本語プロジェクト名。「説明資料(英)」「説明資料(日)」列はプロジェクト説明 PDF（Google Drive、公開）。
 - ここからプロジェクト説明データ（プロジェクト名 → `{code, level, name_ja, name_en, desc_ja, desc_en}`）を作る。desc は説明 PDF の冒頭の説明文（Purpose / Overview / This project includes の部分）。
-- 開発者が一度だけ生成して同梱する。毎回の実行には含めない。
+- 開発者が `tools/build_projects.py`（Python + pymupdf）で生成し、`src/projects.js`（`PROJECTS`）としてスクリプトに同梱する。毎回の実行には含めない。一覧が更新されたら再実行する。
+- 説明資料の PDF のうち、Google ドライブで共有が限定されているものは取得できない（2026-10 時点で英語版の多くが該当）。説明が無いプロジェクトは見出しのみ記入し、警告を出す。PDF を手元に置けば（`cache/pathways/pdf/{番号}_{en|ja}.pdf`）ツールはそれを使う。
 - スピーチが日本語セッションでもプロジェクト名が英語で登録されていることがあるので、日英どちらの名前でも引けるようにする。新形式のリンクにある行番号でも引けるようにする。
 
 ## 4. テンプレート
@@ -180,6 +181,7 @@ Upcoming 表の、対象回を除いた最初の 2 件。形式は `11/05　木�
 | `src/parse.js` | HTML → meeting オブジェクト。`parseMeeting(pageHtml, membersHtml, mtgid)` |
 | `src/fill.js` | meeting → 記入内容の一覧（`buildFillPlan`：セル番地と値、`objectiveLayout`：プロジェクト目標の記入と非表示行）。純粋な関数 |
 | `src/main.js` | Apps Script 側：取得（UrlFetchApp）、スプレッドシートのコピーへの記入、PDF 出力。メニュー・トリガーは段階 6 |
+| `src/projects.js` | プロジェクト説明データ（`tools/build_projects.py` で生成） |
 | `tests/` | Node のテスト（`npm test`）と匿名化済みフィクスチャ |
 
 メール送信は今回は対象外（後から追加できるようにしておく）。
@@ -216,5 +218,5 @@ Upcoming 表の、対象回を除いた最初の 2 件。形式は `11/05　木�
 | 2 | 記入内容の組み立て（`src/fill.js`）。384 / 385 回のデータで手作業版と比較 | 完了 |
 | 3 | Google スプレッドシート連携：テンプレートの変換、記入、PDF 出力 | 完了 |
 | 4 | スピーチ 3 本の回の行挿入 | 完了 |
-| 5 | プロジェクト説明データの作成 | 未着手 |
+| 5 | プロジェクト説明データの作成 | 完了（英語の説明は一部のみ。共有の許可待ち） |
 | 6 | 対象回の自動判定、メニュー（① 作成 / ② PDF 出力）、定期実行（初期オフ）、共有・権限の手順、README の利用手順 | 未着手 |

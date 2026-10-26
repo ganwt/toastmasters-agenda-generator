@@ -264,3 +264,26 @@ test('両セッション 3 本（EJ）：後半の挿入位置は前半の挿入
   assert.equal(c.J71, ''); // 後半の論評 3（元 J61 + 9 行 + 1）
   assert.equal(c.H83, '11/05　木曜日　第386回例会'); // 元 H73 + 10 行
 });
+
+test('プロジェクト説明（PROJECTS）：名前・行番号で引き、言語に応じた説明を入れる', async (t) => {
+  const findProject = (s) => gas.findProjectInfo(s, gas.PROJECTS);
+
+  await t.test('384：日本語は説明あり、英語は説明データが無いので見出しのみ＋警告', () => {
+    const plan = gas.buildFillPlan(meeting('384'), { zoom: ZOOM, findProject });
+    assert.match(plan.objectives[0].description, /^このプロジェクトでは/);
+    assert.match(plan.objectives[0].description, /目的：/);
+    assert.equal(plan.objectives[1].title, 'L3: Researching and Presenting');
+    assert.equal(plan.objectives[1].description, '');
+    assert.deepEqual(Array.from(plan.warnings), ['プロジェクト「Researching and Presenting」の説明が見つかりません（見出しのみ記入）']);
+  });
+  await t.test('386：新形式は行番号（range=A11）で引く。英語名のプロジェクトでも日本語セッションなら日本語の説明', () => {
+    const plan = gas.buildFillPlan(meeting('386'), { zoom: ZOOM, findProject });
+    const info = gas.findProjectInfo(meeting('386').speeches.ja[0], gas.PROJECTS);
+    assert.equal(info.code, '8204');
+    assert.match(plan.objectives[0].description, /メンター/);
+    assert.equal(plan.warnings.length, 0);
+  });
+  await t.test('見つからない名前は null', () => {
+    assert.equal(gas.findProjectInfo({ project: '存在しないプロジェクト' }, gas.PROJECTS), null);
+  });
+});

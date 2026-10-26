@@ -27,7 +27,8 @@ function fakeSheet(name, initial) {
               }
             }
           },
-          setFormula: (f) => { values[col(b) + a] = f; }
+          setFormula: (f) => { values[col(b) + a] = f; },
+          setFontFamily: (f) => { sheet.font = f; }
         };
       }
       return { setValue: (v) => { values[a] = v; }, getValue: () => values[a] };
