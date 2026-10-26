@@ -111,17 +111,33 @@ function exportPdf(ss, name) {
   return res.getBlob().setName(name + '.pdf');
 }
 
+var TIME_ZONE = 'Asia/Tokyo';
+var SCHEDULE = { weekDay: 'THURSDAY', hour: 13 }; // 例会日（第 1・第 3 木曜）の 13 時台に実行
+var SCHEDULE_HANDLER = 'scheduledCreateProgram';
+
+function todayJst() {
+  return Utilities.formatDate(new Date(), TIME_ZONE, 'yyyy/MM/dd');
+}
+
+function fetchUpcoming() {
+  return parseUpcomingFromHtml(fetchText(SITE_BASE));
+}
+
 // ① プログラム作成：クラブ用スプレッドシート（テンプレート）のコピーを出力フォルダに作って記入する
 function createProgram(mtgid) {
   return createProgramFromMeeting(fetchMeeting(mtgid));
 }
 
-function createProgramFromMeeting(meeting) {
+function createProgramFromMeeting(meeting, options) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var settings = readSettings(ss);
   var folder = folderFromUrl(settings.folderUrl);
   var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, PROJECTS); } });
 
+  if (options && options.skipIfExists && folder.getFilesByName(plan.fileName).hasNext()) {
+    Logger.log('第' + meeting.number + '回のプログラムは作成済みのため、何もしません');
+    return null;
+  }
   var copyFile = DriveApp.getFileById(ss.getId()).makeCopy(plan.fileName, folder);
   var copy = SpreadsheetApp.openById(copyFile.getId());
   applyPlan(copy, plan);
@@ -145,21 +161,56 @@ function exportProgramPdf() {
   return { url: pdf.getUrl() };
 }
 
+// 定期実行：例会の当日だけ、その回のプログラムを作る（作成済みなら何もしない）。PDF は人が確認してから出す
+function scheduledCreateProgram() {
+  runScheduled(todayJst());
+}
+
+function runScheduled(today) {
+  var target = selectTodaysMeeting(fetchUpcoming(), today);
+  if (!target) {
+    Logger.log(today + ' は例会日ではないため、何もしません');
+    return;
+  }
+  createProgramFromMeeting(fetchMeeting(target.mtgid), { skipIfExists: true });
+}
+
+function findScheduleTriggers() {
+  return ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === SCHEDULE_HANDLER; });
+}
+
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('例会プログラム')
-    .addItem('① プログラム作成（mtgid を指定）', 'menuCreateProgramById')
+    .addItem('① 次回のプログラムを作成', 'menuCreateNextProgram')
+    .addItem('① 回を指定して作成（mtgid）', 'menuCreateProgramById')
     .addItem('② PDF 出力', 'menuExportPdf')
+    .addSeparator()
+    .addItem('定期実行をオンにする', 'menuScheduleOn')
+    .addItem('定期実行をオフにする', 'menuScheduleOff')
     .addToUi();
 }
 
 function showLink(title, message, url) {
   var html = '<p style="font-family:sans-serif">' + message + '</p>' +
     '<p style="font-family:sans-serif"><a href="' + url + '" target="_blank">開く</a></p>';
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(420).setHeight(200), title);
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(420).setHeight(240), title);
 }
 
 function warningText(warnings) {
   return warnings.length ? '<br><br>注意：<br>' + warnings.map(function (w) { return '・' + w; }).join('<br>') : '';
+}
+
+function showCreated(r) {
+  showLink('作成しました', '第' + r.number + '回のプログラムを作成しました。開いて内容を確認し、必要なら手直ししてから「② PDF 出力」を実行してください。' + warningText(r.warnings), r.url);
+}
+
+function menuCreateNextProgram() {
+  var ui = SpreadsheetApp.getUi();
+  var next = selectNextMeeting(fetchUpcoming(), todayJst());
+  if (!next) { ui.alert('今後の例会が見つかりませんでした'); return; }
+  var ok = ui.alert('プログラム作成', next.date + '　第' + next.number + '回例会のプログラムを作成します。よろしいですか？', ui.ButtonSet.OK_CANCEL);
+  if (ok !== ui.Button.OK) return;
+  showCreated(createProgram(next.mtgid));
 }
 
 function menuCreateProgramById() {
@@ -168,8 +219,7 @@ function menuCreateProgramById() {
   if (res.getSelectedButton() !== ui.Button.OK) return;
   var mtgid = parseInt(res.getResponseText(), 10);
   if (!mtgid) { ui.alert('mtgid は数字で入力してください'); return; }
-  var r = createProgram(mtgid);
-  showLink('作成しました', '第' + r.number + '回のプログラムを作成しました。開いて内容を確認し、必要なら手直ししてから「② PDF 出力」を実行してください。' + warningText(r.warnings), r.url);
+  showCreated(createProgram(mtgid));
 }
 
 function menuExportPdf() {
@@ -177,20 +227,17 @@ function menuExportPdf() {
   showLink('PDF を保存しました', 'PDF を保存しました。', r.url);
 }
 
-// 段階 4 の動作確認用：第 384 回のデータを元に、両セッションともスピーチ 3 本にした人工データで作成する
-function testThreeSpeeches() {
-  var m = fetchMeeting(257);
-  ['ja', 'en'].forEach(function (lang) {
-    var base = m.speeches[lang][0];
-    [2, 3].forEach(function (slot) {
-      var s = JSON.parse(JSON.stringify(base));
-      s.slot = slot;
-      s.title = '（テスト）' + slot + ' 本目';
-      m.speeches[lang].push(s);
-    });
-  });
-  m.speeches.ja[2].time_limit = { min: 4, max: 6 };
-  m.number = 999; // ファイル名で本番と区別する
-  var r = createProgramFromMeeting(m);
-  Logger.log(r.url);
+function menuScheduleOn() {
+  var ui = SpreadsheetApp.getUi();
+  readSettings(SpreadsheetApp.getActiveSpreadsheet()); // テンプレート以外では使えないことを先に確認
+  if (findScheduleTriggers().length) { ui.alert('定期実行はすでにオンです'); return; }
+  ScriptApp.newTrigger(SCHEDULE_HANDLER).timeBased()
+    .onWeekDay(ScriptApp.WeekDay[SCHEDULE.weekDay]).atHour(SCHEDULE.hour).inTimezone(TIME_ZONE).create();
+  ui.alert('定期実行をオンにしました。毎週木曜 13 時台に、その日が例会日ならプログラムを作成します（PDF 出力は手動）。\n※ オンにした人のアカウントで実行されます。');
+}
+
+function menuScheduleOff() {
+  var triggers = findScheduleTriggers();
+  triggers.forEach(function (t) { ScriptApp.deleteTrigger(t); });
+  SpreadsheetApp.getUi().alert(triggers.length ? '定期実行をオフにしました' : '定期実行はオンになっていません（オンにした本人のみオフにできます）');
 }

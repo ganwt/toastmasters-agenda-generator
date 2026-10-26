@@ -287,3 +287,13 @@ test('プロジェクト説明（PROJECTS）：名前・行番号で引き、言
     assert.equal(gas.findProjectInfo({ project: '存在しないプロジェクト' }, gas.PROJECTS), null);
   });
 });
+
+test('対象回の選択（Upcoming）', () => {
+  const upcoming = gas.parseUpcomingFromHtml(readFixture('top_page.html'));
+  assert.equal(gas.selectNextMeeting(upcoming, '2026/10/26').number, 386);
+  assert.equal(gas.selectNextMeeting(upcoming, '2026/11/05').number, 386); // 当日も「次回」
+  assert.equal(gas.selectNextMeeting(upcoming, '2026/11/06').number, 387);
+  assert.equal(gas.selectNextMeeting(upcoming, '2030/01/01'), null);
+  assert.equal(gas.selectTodaysMeeting(upcoming, '2026/11/05').mtgid, 259);
+  assert.equal(gas.selectTodaysMeeting(upcoming, '2026/11/12'), null); // 例会の無い木曜
+});

@@ -284,3 +284,13 @@ function findProjectInfo(speech, projects) {
   if (!name) return null;
   return projects.filter(function (p) { return norm(p.name_ja) === name || norm(p.name_en) === name; })[0] || null;
 }
+
+// Upcoming 表（日付は yyyy/mm/dd）から対象回を選ぶ。today も yyyy/mm/dd（日本時間）
+// 次回：日付が今日以降の最初の回。当日：日付が今日の回（定期実行用。例会の無い日は null）
+function selectNextMeeting(upcoming, today) {
+  return (upcoming || []).filter(function (u) { return u.date >= today; })[0] || null;
+}
+
+function selectTodaysMeeting(upcoming, today) {
+  return (upcoming || []).filter(function (u) { return u.date === today; })[0] || null;
+}
