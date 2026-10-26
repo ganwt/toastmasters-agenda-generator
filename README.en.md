@@ -12,13 +12,13 @@ Today, someone opens the Club Support System, copies the role assignments into a
 
 ## What it will do
 
-- Choose "Create program" from the menu of the club's Google Sheet to get the next meeting's program as a PDF
+- Choose "Create program" from the menu of the club's Google Sheet to get the next meeting's program
   - Reads roles, speeches, guests and attendance from the Club Support System
   - Detects JE (Japanese session first) / EJ (English session first)
   - Adds rows automatically when a session has three prepared speeches
   - Fills the "Project Objectives" page with the Pathways project descriptions
-- Can also run on a schedule (e.g. every other Thursday at 12:00) without anyone's computer being on
-- The PDF and an editable copy of the sheet are saved to a Google Drive folder
+- First creates an editable spreadsheet; after checking and fixing it, "Export PDF" turns it into a PDF (handy when someone cancels)
+- Can optionally run on a schedule (off by default)
 
 ## Requirements
 
@@ -27,9 +27,9 @@ Today, someone opens the Club Support System, copies the role assignments into a
 
 ## Usage (planned)
 
-1. Open the club's spreadsheet
-2. Choose "Create program" from the menu
-3. The PDF appears in the output folder on Google Drive
+1. Open the club's spreadsheet and choose "① Create program" from the menu
+2. Check the new spreadsheet and fix anything if needed
+3. Choose "② Export PDF" from that spreadsheet's menu. The PDF appears in the output folder
 
 How to set up the club's spreadsheet (one time) will be added here when the tool is finished.
 
@@ -40,10 +40,10 @@ How to set up the club's spreadsheet (one time) will be added here when the tool
 | 0 | Template analysis (cell map, print areas) | ✅ Done |
 | 1 | Meeting page reader (`src/parse.js`) and tests | ✅ Done |
 | 2 | Build the list of cells to fill (`src/fill.js`) | ✅ Done |
-| 3 | Fill the Google Sheet and export PDF | ⬜ Not started |
+| 3 | Fill the Google Sheet and export PDF | ✅ Done |
 | 4 | Extra rows for three-speech sessions | ⬜ Not started |
 | 5 | Pathways project description data | ⬜ Not started |
-| 6 | Page fetching, menu, scheduled runs, setup guide | ⬜ Not started |
+| 6 | Menu, scheduled runs (off by default), sharing and setup guide | ⬜ Not started |
 
 ## Layout
 
