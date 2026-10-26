@@ -39,7 +39,7 @@ How to set up the club's spreadsheet (one time) will be added here when the tool
 |---|---|---|
 | 0 | Template analysis (cell map, print areas) | ✅ Done |
 | 1 | Meeting page reader (`src/parse.js`) and tests | ✅ Done |
-| 2 | Build the list of cells to fill (`src/fill.js`) | ⬜ Not started |
+| 2 | Build the list of cells to fill (`src/fill.js`) | ✅ Done |
 | 3 | Fill the Google Sheet and export PDF | ⬜ Not started |
 | 4 | Extra rows for three-speech sessions | ⬜ Not started |
 | 5 | Pathways project description data | ⬜ Not started |
