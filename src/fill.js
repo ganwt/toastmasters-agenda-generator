@@ -10,13 +10,14 @@ var VENUES = {
 var HELPER_ROLES = ['計時係', 'えーとカウンター', '笑いカウンター', '文法係', '集計係', '例会報告係'];
 
 var SESSION_ROLES = {
-  ja: { tmoe: '今夜のトーストマスター', ttm: 'テーブルトピックスマスター', ge: '総合論評', evals: ['論評1', '論評2'] },
-  en: { tmoe: 'Toastmaster of the Evening', ttm: 'Table Topics Master', ge: 'General Evaluation', evals: ['Evaluation1', 'Evaluation2'] }
+  ja: { tmoe: '今夜のトーストマスター', ttm: 'テーブルトピックスマスター', ge: '総合論評', evals: ['論評1', '論評2', '論評3'] },
+  en: { tmoe: 'Toastmaster of the Evening', ttm: 'Table Topics Master', ge: 'General Evaluation', evals: ['Evaluation1', 'Evaluation2', 'Evaluation3'] }
 };
 
-// セッションの位置（前半 / 後半）ごとのセル番地
+// セッションの位置（前半 / 後半）ごとのセル番地。speech2Rows はスピーチ 2 のブロック（3 本目を挿入するときの複写元）
 var SESSION_CELLS = {
   first: {
+    speech2Rows: [25, 28],
     speeches: [
       { speaker: 'J21', title: 'F22', project: 'F23', time: 'C22', comment: 'C24' },
       { speaker: 'J25', title: 'F26', project: 'F27', time: 'C26', comment: 'C28' }
@@ -26,6 +27,7 @@ var SESSION_CELLS = {
     ge: 'J38'
   },
   second: {
+    speech2Rows: [49, 52],
     speeches: [
       { speaker: 'J45', title: 'F46', project: 'F47', time: 'C45', comment: 'C48' },
       { speaker: 'J49', title: 'F50', project: 'F51', time: 'C49', comment: 'C52' }
@@ -98,11 +100,24 @@ function buildFillPlan(meeting, settings) {
   settings = settings || {};
   var warnings = [];
   var cells = [];
-  var set = function (cell, value) { cells.push({ cell: cell, value: value }); };
-  var setMinutes = function (cell, minutes) { cells.push({ cell: cell, minutes: minutes }); };
   var role = function (name) { return meeting.roles[name] || ''; };
-
   var order = meeting.format === 'JE' ? ['ja', 'en'] : ['en', 'ja'];
+
+  // スピーチ 3 本のセッションは行を挿入する。セル番地はテンプレートの行番号で書き、挿入後の番号に直して記録する
+  var inserts = planInserts(meeting, order);
+  var at = function (cell) {
+    var m = /^([A-Z]+)(\d+)$/.exec(cell);
+    return m[1] + shiftRow(inserts, parseInt(m[2], 10));
+  };
+  // offset > 0：挿入した行（複写元の行の n 行下）を指す
+  var below = function (cell, offset) {
+    var m = /^([A-Z]+)(\d+)$/.exec(cell);
+    return m[1] + (shiftRow(inserts, parseInt(m[2], 10)) + offset);
+  };
+  var setAt = function (cell, value) { cells.push({ cell: cell, value: value }); };
+  var minutesAt = function (cell, minutes) { cells.push({ cell: cell, minutes: minutes }); };
+  var set = function (cell, value) { setAt(at(cell), value); };
+  var setMinutes = function (cell, minutes) { minutesAt(at(cell), minutes); };
 
   // ヘッダー
   set('G1', '第' + meeting.number + '回');
@@ -125,25 +140,34 @@ function buildFillPlan(meeting, settings) {
     var c = SESSION_CELLS[pos];
     var r = SESSION_ROLES[lang];
     var speeches = meeting.speeches[lang] || [];
+    var three = speeches.some(function (s) { return s.slot === 3; });
     speeches.forEach(function (s) {
-      if (s.slot > c.speeches.length) {
-        warnings.push((lang === 'ja' ? '準備スピーチ' : 'Prepared Speech') + s.slot + ' は 3 本目のため未対応です（行の挿入は今後対応）');
-      }
+      if (s.slot > 3) warnings.push((lang === 'ja' ? '準備スピーチ' : 'Prepared Speech') + s.slot + ' は 4 本目以降のため記入していません');
     });
-    c.speeches.forEach(function (sc, k) {
+    // 3 本目の枠は 2 本目のブロックの 4 行下、論評 3 は論評 2 の 1 行下（どちらも挿入した行）
+    var speechCells = c.speeches.map(function (sc) {
+      return { speaker: at(sc.speaker), title: at(sc.title), project: at(sc.project), time: at(sc.time), comment: at(sc.comment) };
+    });
+    var evalCells = c.evals.map(function (ec) { return { name: at(ec.name), time: at(ec.time) }; });
+    if (three) {
+      var s2 = c.speeches[1];
+      speechCells.push({ speaker: below(s2.speaker, 4), title: below(s2.title, 4), project: below(s2.project, 4), time: below(s2.time, 4), comment: below(s2.comment, 4) });
+      evalCells.push({ name: below(c.evals[1].name, 1), time: below(c.evals[1].time, 1) });
+    }
+    speechCells.forEach(function (sc, k) {
       var s = speeches.filter(function (x) { return x.slot === k + 1; })[0];
-      set(sc.speaker, s ? s.speaker : '');
-      set(sc.title, s ? formatSpeechTitle(s, lang) : '');
-      set(sc.project, s ? formatProjectLine(s, lang) : '');
-      setMinutes(sc.time, s ? (s.time_limit || DEFAULT_TIME_LIMIT).max + SPEECH_MINUTES_EXTRA : 0);
-      setMinutes(sc.comment, s ? COMMENT_MINUTES : 0);
+      setAt(sc.speaker, s ? s.speaker : '');
+      setAt(sc.title, s ? formatSpeechTitle(s, lang) : '');
+      setAt(sc.project, s ? formatProjectLine(s, lang) : '');
+      minutesAt(sc.time, s ? (s.time_limit || DEFAULT_TIME_LIMIT).max + SPEECH_MINUTES_EXTRA : 0);
+      minutesAt(sc.comment, s ? COMMENT_MINUTES : 0);
       if (s) objectives.push({ speech: s, lang: lang });
     });
     set(c.ttm, role(r.ttm));
-    c.evals.forEach(function (ec, k) {
+    evalCells.forEach(function (ec, k) {
       var name = role(r.evals[k]);
-      set(ec.name, name);
-      setMinutes(ec.time, name ? EVAL_MINUTES : 0);
+      setAt(ec.name, name);
+      minutesAt(ec.time, name ? EVAL_MINUTES : 0);
     });
     set(c.ge, role(r.ge));
   });
@@ -152,13 +176,14 @@ function buildFillPlan(meeting, settings) {
   var guests = (meeting.guests || []).filter(function (g) { return g.indexOf('キャンセル') === -1; });
   var guestCapacity = GUEST_ROWS.last - GUEST_ROWS.first + 1;
   if (guests.length > guestCapacity) warnings.push('ゲストが ' + guests.length + ' 人で欄（' + guestCapacity + ' 行）に入りきりません');
-  fillChecklist(set, GUEST_ROWS, TEMPLATE_CHECKBOX_ROWS.guests, guests);
+  // 右側の欄は挿入後のシートで上から詰めるので、行番号は直さない
+  fillChecklist(setAt, GUEST_ROWS, TEMPLATE_CHECKBOX_ROWS.guests, guests);
 
   // 右側の欄：出席予定会員
   var members = (meeting.attendance || []).filter(function (a) { return isAttending(a.mark); }).map(function (a) { return a.name; });
   var memberCapacity = MEMBER_ROWS.last - MEMBER_ROWS.first + 1;
   if (members.length > memberCapacity) warnings.push('出席予定会員が ' + members.length + ' 人で欄に入りきりません');
-  fillChecklist(set, MEMBER_ROWS, TEMPLATE_CHECKBOX_ROWS.members, members);
+  fillChecklist(setAt, MEMBER_ROWS, TEMPLATE_CHECKBOX_ROWS.members, members);
 
   // 今後の予定
   var next = (meeting.upcoming || []).filter(function (u) { return u.number !== meeting.number; }).slice(0, 2);
@@ -170,11 +195,37 @@ function buildFillPlan(meeting, settings) {
   var p = parseDateParts(meeting.date);
   return {
     sheet: meeting.format,
+    inserts: inserts.map(function (ins) {
+      var after = shiftRow(inserts, ins.after);
+      return { after: after, count: ins.count, from: shiftRow(inserts, ins.from), label: 'F' + (after + 1) };
+    }),
     cells: cells,
     objectives: buildObjectives(objectives, settings, warnings),
     fileName: '新宿BTMC第' + meeting.number + '回例会プログラム' + p.y + pad2(p.m) + pad2(p.d),
     warnings: warnings
   };
+}
+
+// 3 本目のスピーチがあるセッションごとに、スピーチ 2 のブロック（4 行）と論評 2 の行（1 行）を複写して挿入する。
+// after / from はテンプレートの行番号。上から順に並べる
+function planInserts(meeting, order) {
+  var inserts = [];
+  ['first', 'second'].forEach(function (pos, i) {
+    var speeches = meeting.speeches[order[i]] || [];
+    if (!speeches.some(function (s) { return s.slot === 3; })) return;
+    var c = SESSION_CELLS[pos];
+    var evalRow = parseInt(c.evals[1].name.slice(1), 10);
+    inserts.push({ after: c.speech2Rows[1], count: 4, from: c.speech2Rows[0] });
+    inserts.push({ after: evalRow, count: 1, from: evalRow });
+  });
+  return inserts.sort(function (a, b) { return a.after - b.after; });
+}
+
+// テンプレートの行番号 → 挿入後の行番号
+function shiftRow(inserts, row) {
+  var r = row;
+  inserts.forEach(function (ins) { if (ins.after < row) r += ins.count; });
+  return r;
 }
 
 // 名前を上から詰めて書き、□ は名前のある行だけに付ける（テンプレートの余分な □ は消す）

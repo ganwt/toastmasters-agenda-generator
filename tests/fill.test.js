@@ -183,14 +183,84 @@ test('プロジェクト目標：4 件以上は枠を追加', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(layout.cells.slice(-2))), [{ cell: 'B9', value: 'L1: P4' }, { cell: 'B10', value: 'd4' }]);
 });
 
-test('警告：Zoom 未設定、未登録の会場、3 本目のスピーチ', () => {
+test('警告：Zoom 未設定、未登録の会場', () => {
   const m = meeting('384');
   m.venue = '新しいセンター';
-  m.speeches.ja.push({ ...m.speeches.ja[0], slot: 3 });
   const plan = gas.buildFillPlan(m, {});
   const c = cellMap(plan);
   assert.equal(c.J3, '会場：新しいセンター 集会室３');
   assert.ok(plan.warnings.some((w) => w.includes('Zoom')));
   assert.ok(plan.warnings.some((w) => w.includes('新しいセンター')));
-  assert.ok(plan.warnings.some((w) => w.includes('準備スピーチ3')));
+});
+
+test('スピーチ 2 本以下なら行の挿入なし', () => {
+  assert.deepEqual(Array.from(gas.buildFillPlan(meeting('384'), { zoom: ZOOM }).inserts), []);
+});
+
+// 384（JE）を元に、前半（日本語）を 3 本にした人工データ
+function threeSpeechesFirst() {
+  const m = meeting('384');
+  const base = m.speeches.ja[0];
+  m.speeches.ja.push({ ...base, slot: 2, speaker: 'スピーカー二', title: '二本目' });
+  m.speeches.ja.push({ ...base, slot: 3, speaker: 'スピーカー三', title: '三本目', time_limit: { min: 4, max: 6 } });
+  return m;
+}
+
+test('前半 3 本：スピーチ 2 のブロックの後に 4 行、論評 2 の後に 1 行を挿入', async (t) => {
+  const plan = gas.buildFillPlan(threeSpeechesFirst(), { zoom: ZOOM });
+  const c = cellMap(plan);
+
+  await t.test('挿入の指示（挿入後の行番号）', () => {
+    assert.deepEqual(JSON.parse(JSON.stringify(plan.inserts)), [
+      { after: 28, count: 4, from: 25, label: 'F29' },
+      { after: 41, count: 1, from: 41, label: 'F42' }
+    ]);
+  });
+  await t.test('3 本目は挿入した行に入る', () => {
+    assert.equal(c.J25, 'スピーカー二');
+    assert.equal(c.J29, 'スピーカー三');
+    assert.equal(c.F30, '『三本目』（4～6分）');
+    assert.equal(c.F31, 'プレゼンテーション熟達 L3：ボーカルバラエティについて');
+    assert.equal(c.C30, '7分');
+    assert.equal(c.C32, '1分');
+  });
+  await t.test('挿入より下のセルはずれた位置に入る', () => {
+    assert.equal(c.J35, '木村明美'); // TT マスター（元 J31）
+    assert.equal(c.J40, '小川 三郎'); // 論評 1（元 J36）
+    assert.equal(c.J41, ''); // 論評 2（元 J37）
+    assert.equal(c.J42, ''); // 論評 3（日本語セッションには役割が無い）
+    assert.equal(c.C42, '0分');
+    assert.equal(c.J43, 'Alex Smith'); // 総合論評（元 J38）
+    assert.equal(c.J48, 'TMOE: 久保さくら'); // 後半 TMOE（元 J43）
+    assert.equal(c.J50, '小林拓也'); // 後半スピーチ 1（元 J45）
+    assert.equal(c.H78, '11/05　木曜日　第386回例会'); // 今後の予定（元 H73）
+    assert.equal(c.H73, undefined);
+  });
+  await t.test('右側の欄は挿入後のシートで上から詰める（行番号はずらさない）', () => {
+    assert.equal(c.O19, '江口次郎さん');
+    assert.equal(c.O7, '林さん（Area Director）');
+  });
+});
+
+test('両セッション 3 本（EJ）：後半の挿入位置は前半の挿入分もずれる', () => {
+  const m = meeting('385');
+  m.speeches.en.push({ ...m.speeches.en[0], slot: 3, speaker: 'Third' });
+  m.speeches.ja.push({ ...m.speeches.ja[0], slot: 2, speaker: '二' }, { ...m.speeches.ja[0], slot: 3, speaker: '三' });
+  m.roles.Evaluation3 = 'Eval Three';
+  const plan = gas.buildFillPlan(m, { zoom: ZOOM });
+  const c = cellMap(plan);
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.inserts)), [
+    { after: 28, count: 4, from: 25, label: 'F29' },
+    { after: 41, count: 1, from: 41, label: 'F42' },
+    { after: 57, count: 4, from: 54, label: 'F58' },
+    { after: 70, count: 1, from: 70, label: 'F71' }
+  ]);
+  assert.equal(c.J29, 'Third');
+  assert.equal(c.J42, 'Eval Three'); // 論評 3（英語は役割がある）
+  assert.equal(c.C42, '5分');
+  assert.equal(c.J50, '加藤 四郎'); // 後半スピーチ 1（元 J45）
+  assert.equal(c.J54, '二'); // 後半スピーチ 2（元 J49）
+  assert.equal(c.J58, '三');
+  assert.equal(c.J71, ''); // 後半の論評 3（元 J61 + 9 行 + 1）
+  assert.equal(c.H83, '11/05　木曜日　第386回例会'); // 元 H73 + 10 行
 });

@@ -41,7 +41,7 @@ How to set up the club's spreadsheet (one time) will be added here when the tool
 | 1 | Meeting page reader (`src/parse.js`) and tests | ✅ Done |
 | 2 | Build the list of cells to fill (`src/fill.js`) | ✅ Done |
 | 3 | Fill the Google Sheet and export PDF | ✅ Done |
-| 4 | Extra rows for three-speech sessions | ⬜ Not started |
+| 4 | Extra rows for three-speech sessions | ✅ Done |
 | 5 | Pathways project description data | ⬜ Not started |
 | 6 | Menu, scheduled runs (off by default), sharing and setup guide | ⬜ Not started |
 

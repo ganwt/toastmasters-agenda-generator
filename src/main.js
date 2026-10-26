@@ -43,8 +43,27 @@ function folderFromUrl(url) {
   return DriveApp.getFolderById(id);
 }
 
+var AGENDA_LAST_COLUMN = 13; // M 列まで（N・O 列は右側のゲスト・会員欄）
+
+// スピーチ 3 本の回：行を挿入し、複写元（スピーチ 2 のブロック / 論評 2 の行）の議事欄を複写する。
+// 右側の欄は複写しない。B 列は挿入した行とその次の行の数式をつなぎ直す（開始時刻の連鎖を切らないため）
+function applyInserts(sheet, inserts) {
+  (inserts || []).forEach(function (ins) {
+    sheet.insertRowsAfter(ins.after, ins.count);
+    sheet.getRange(ins.from, 1, ins.count, AGENDA_LAST_COLUMN)
+      .copyTo(sheet.getRange(ins.after + 1, 1, ins.count, AGENDA_LAST_COLUMN));
+    for (var k = 0; k < ins.count; k++) sheet.setRowHeight(ins.after + 1 + k, sheet.getRowHeight(ins.from + k));
+    for (var r = ins.after + 1; r <= ins.after + ins.count + 1; r++) {
+      sheet.getRange(r, 2).setFormula('=B' + (r - 1) + '+C' + (r - 1));
+    }
+    var label = sheet.getRange(ins.label);
+    label.setValue(String(label.getValue()).replace(/2(\s*)$/, '3$1'));
+  });
+}
+
 function applyPlan(ss, plan) {
   var sheet = ss.getSheetByName(plan.sheet);
+  applyInserts(sheet, plan.inserts);
   plan.cells.forEach(function (c) {
     var range = sheet.getRange(c.cell);
     if (c.minutes !== undefined) range.setValue(c.minutes / (24 * 60)); // 時刻値（1 日 = 1）
@@ -91,10 +110,13 @@ function exportPdf(ss, name) {
 
 // ① プログラム作成：クラブ用スプレッドシート（テンプレート）のコピーを出力フォルダに作って記入する
 function createProgram(mtgid) {
+  return createProgramFromMeeting(fetchMeeting(mtgid));
+}
+
+function createProgramFromMeeting(meeting) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var settings = readSettings(ss);
   var folder = folderFromUrl(settings.folderUrl);
-  var meeting = fetchMeeting(mtgid);
   var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: null });
 
   var copyFile = DriveApp.getFileById(ss.getId()).makeCopy(plan.fileName, folder);
@@ -150,4 +172,22 @@ function menuCreateProgramById() {
 function menuExportPdf() {
   var r = exportProgramPdf();
   showLink('PDF を保存しました', 'PDF を保存しました。', r.url);
+}
+
+// 段階 4 の動作確認用：第 384 回のデータを元に、両セッションともスピーチ 3 本にした人工データで作成する
+function testThreeSpeeches() {
+  var m = fetchMeeting(257);
+  ['ja', 'en'].forEach(function (lang) {
+    var base = m.speeches[lang][0];
+    [2, 3].forEach(function (slot) {
+      var s = JSON.parse(JSON.stringify(base));
+      s.slot = slot;
+      s.title = '（テスト）' + slot + ' 本目';
+      m.speeches[lang].push(s);
+    });
+  });
+  m.speeches.ja[2].time_limit = { min: 4, max: 6 };
+  m.number = 999; // ファイル名で本番と区別する
+  var r = createProgramFromMeeting(m);
+  Logger.log(r.url);
 }
