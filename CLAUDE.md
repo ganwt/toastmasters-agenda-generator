@@ -7,11 +7,11 @@ AI コーディングアシスタント（Claude Code など）向けのプロ�
 
 ## 実装の約束事
 
-- 実行環境は Windows 10/11 標準の **PowerShell 5.1** のみ。利用者に追加インストールを求めない（Excel と Chrome は前提）。
-- `.ps1` ファイルは **UTF-8（BOM 付き）** で保存する。BOM が無いと PowerShell 5.1 が日本語を読み違える。
-- HTML 解析は HTMLFile COM、Excel 操作は Excel COM、テストは Windows 標準の Pester 3.4。
-- `template.xlsx` は直接編集しない。毎回コピーしてから記入する。B 列（開始時刻の数式）は変更しない。
-- 変更後は `powershell -ExecutionPolicy Bypass -Command "Invoke-Pester tests"` を実行する。
+- 本体は **Google Apps Script（V8 ランタイム）**。Google スプレッドシート上で動き、利用者の OS を問わない。
+- `src/*.js` は Apps Script にそのまま貼れる形で書く。`require` / `import` / `module.exports` は使わず、全ファイル共通のグローバル関数で書く（Apps Script と同じ）。外部ライブラリは使わない。
+- Apps Script の API（`SpreadsheetApp`、`UrlFetchApp` など）を呼ぶ部分は薄くし、HTML 解析や記入内容の組み立ては純粋な関数にして Node でテストできるようにする。
+- テストは Node 標準の `node:test`（依存パッケージなし）。`tests/gas.js` が `src/` を Apps Script と同じ共通スコープで読み込む。変更後は `npm test` を実行する。
+- テンプレートの B 列（開始時刻の数式）は変更しない。テンプレート本体は直接書き換えず、毎回コピーしてから記入する。
 
 ## 個人情報
 
