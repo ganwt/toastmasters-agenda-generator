@@ -265,26 +265,47 @@ test('両セッション 3 本（EJ）：後半の挿入位置は前半の挿入
   assert.equal(c.H83, '11/05　木曜日　第386回例会'); // 元 H73 + 10 行
 });
 
-test('プロジェクト説明（PROJECTS）：名前・行番号で引き、言語に応じた説明を入れる', async (t) => {
-  const findProject = (s) => gas.findProjectInfo(s, gas.PROJECTS);
+// 「プロジェクト説明」シートの見本（getDataRange().getValues() の形）。説明文は架空のもの
+const PROJECT_SHEET = [
+  ['row', 'code', 'level', 'name_en', 'name_ja', 'desc_ja', 'desc_en'],
+  [35, '8317', 'Lvl.3', 'Understanding Vocal Variety', 'ボーカルバラエティについて', '（見本）ボーカルバラエティの説明', '(sample) vocal variety purpose'],
+  [38, 8321, 'Lvl.3', 'Researching and Presenting', 'リサーチとプレゼンテーション', '（見本）リサーチの説明', ''],
+  [11, '8204', 'Lvl.2', 'Introduction to Toastmasters Mentoring', 'TOASTMASTERS メンタリング入門', '（見本）メンターの説明', '(sample) mentoring purpose'],
+  ['', '', '', '', '', '', '']
+];
 
-  await t.test('384：日本語は説明あり、英語は説明データが無いので見出しのみ＋警告', () => {
+test('プロジェクト説明シートの読み込み', () => {
+  const projects = gas.parseProjectSheet(PROJECT_SHEET);
+  assert.equal(projects.length, 3); // 見出し行と空行は除く
+  assert.deepEqual({ ...projects[1] }, {
+    row: 38, code: '8321', level: 'Lvl.3', name_en: 'Researching and Presenting', name_ja: 'リサーチとプレゼンテーション',
+    desc_ja: '（見本）リサーチの説明', desc_en: ''
+  });
+  assert.deepEqual(Array.from(gas.parseProjectSheet([])), []);
+  // 列の順番が違っても見出しで読む
+  const swapped = PROJECT_SHEET.map((r) => [r[6], r[5], r[4], r[3], r[2], r[1], r[0]]);
+  assert.equal(gas.parseProjectSheet(swapped)[0].desc_ja, '（見本）ボーカルバラエティの説明');
+});
+
+test('プロジェクト説明：名前・行番号で引き、言語に応じた説明を入れる', async (t) => {
+  const projects = gas.parseProjectSheet(PROJECT_SHEET);
+  const findProject = (s) => gas.findProjectInfo(s, projects);
+
+  await t.test('384：日本語は日本語の説明、英語は英語の説明が空なので見出しのみ＋警告', () => {
     const plan = gas.buildFillPlan(meeting('384'), { zoom: ZOOM, findProject });
-    assert.match(plan.objectives[0].description, /^このプロジェクトでは/);
-    assert.match(plan.objectives[0].description, /目的：/);
+    assert.equal(plan.objectives[0].description, '（見本）ボーカルバラエティの説明');
     assert.equal(plan.objectives[1].title, 'L3: Researching and Presenting');
     assert.equal(plan.objectives[1].description, '');
     assert.deepEqual(Array.from(plan.warnings), ['プロジェクト「Researching and Presenting」の説明が見つかりません（見出しのみ記入）']);
   });
   await t.test('386：新形式は行番号（range=A11）で引く。英語名のプロジェクトでも日本語セッションなら日本語の説明', () => {
     const plan = gas.buildFillPlan(meeting('386'), { zoom: ZOOM, findProject });
-    const info = gas.findProjectInfo(meeting('386').speeches.ja[0], gas.PROJECTS);
-    assert.equal(info.code, '8204');
-    assert.match(plan.objectives[0].description, /メンター/);
+    assert.equal(gas.findProjectInfo(meeting('386').speeches.ja[0], projects).code, '8204');
+    assert.equal(plan.objectives[0].description, '（見本）メンターの説明');
     assert.equal(plan.warnings.length, 0);
   });
   await t.test('見つからない名前は null', () => {
-    assert.equal(gas.findProjectInfo({ project: '存在しないプロジェクト' }, gas.PROJECTS), null);
+    assert.equal(gas.findProjectInfo({ project: '存在しないプロジェクト' }, projects), null);
   });
 });
 

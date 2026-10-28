@@ -59,13 +59,27 @@ Use a club Google account (e.g. the PR or venue account).
 
 1. **Output folder**: create a folder such as "例会プログラム" on Google Drive and copy its URL
 2. **Template**: download `template.xlsx` from this repository, upload it to Google Drive, right-click → "Open with" → "Google Sheets", then "File" → "Save as Google Sheets"
-3. **Settings sheet**: in that spreadsheet, add a sheet named `設定` and enter
+3. **Settings**: in the `設定` sheet of that spreadsheet, enter
    - B1: the Zoom URL, ID and passcode (double-click the cell before pasting so the lines stay in one cell)
    - B2: the folder URL from step 1
-4. **Script**: open "Extensions" → "Apps Script", paste the entire contents of [`dist/Code.gs`](dist/Code.gs), and save. Reload the spreadsheet and the "例会プログラム" menu appears
-5. **Share**: share the spreadsheet and the output folder with the members in charge as "Editor"
+4. **(Optional) English project descriptions**: the Japanese descriptions are already in the template. To add English ones too, replace the `プロジェクト説明` sheet as described in "Project description data" below
+5. **Script**: open "Extensions" → "Apps Script", paste the entire contents of [`dist/Code.gs`](dist/Code.gs), and save. Reload the spreadsheet and the "例会プログラム" menu appears
+6. **Share**: share the spreadsheet and the output folder with the members in charge as "Editor" (not outside the club)
 
-To update the script, paste the new `dist/Code.gs` the same way as step 4 (programs already created are not affected).
+To update the script, paste the new `dist/Code.gs` the same way as step 5 (programs already created are not affected).
+
+### Project description data
+
+The descriptions on the "Project Objectives" page come from the `プロジェクト説明` sheet. Projects without a description get only the heading.
+
+- **Japanese**: purpose/overview taken from the Japanese materials published in Base Camp Resources. **Included in the template.**
+- **English**: the Purpose from each project's Evaluation Resource. Evaluation Resources are for members logged in to Base Camp, so **they are not in this repository.** Keep them within the club.
+
+To get data that includes English, use one of these:
+
+- **A. Copy from an existing club spreadsheet** (easiest): in a spreadsheet that has the English data, right-click the `プロジェクト説明` sheet tab → "Copy to" → "Existing spreadsheet" → choose the new one. In the new spreadsheet, delete the original `プロジェクト説明` sheet and rename the copied sheet to `プロジェクト説明`
+- **B. Import the CSV kept by the club**: get `project_descriptions.csv` from the club officer who keeps it, open the `プロジェクト説明` sheet, then "File" → "Import" → "Upload" → "Replace current sheet" → "Import data"
+- **C. Rebuild it** (for developers): build the CSV with `tools/build_projects.py`. For English, a member downloads the Evaluation Resource PDFs from Base Camp into `cache/pathways/eval/{code}.pdf` first
 
 ## Status
 
@@ -101,7 +115,7 @@ tests/                tests (names in tests/fixtures are replaced with fictitiou
   ```
 
 - Files in `src/` are written so they can be pasted into Apps Script as-is (no `require`, global functions only). `src/dev.js` holds developer-only functions that are not in the menu.
-- The project description data (`src/projects.js`) can be rebuilt with `tools/build_projects.py` (Python + pymupdf).
+- The project description CSV is built with `tools/build_projects.py` (Python + pymupdf) into `cache/pathways/` (not in the repository). The template's `プロジェクト説明` sheet (Japanese only) is updated from that CSV with `tools/fill_template_projects.ps1` (Windows + Excel).
 - If you add a real meeting page as a test fixture, replace all names with fictitious ones first.
 
 ## Disclaimer

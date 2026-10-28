@@ -3,7 +3,9 @@
 
 var SITE_BASE = 'https://tmcsupport.coresv.com/shinjukubilingualpha/';
 var SETTINGS_SHEET = '設定';
+var PROJECTS_SHEET = 'プロジェクト説明'; // tools/build_projects.py の CSV を取り込んだシート（クラブ内のみ）
 var OBJECTIVES_SHEET = 'プロジェクト目標';
+var PROGRAM_SHEETS = ['JE', 'EJ', OBJECTIVES_SHEET];
 
 function fetchText(url, options) {
   var opts = { muteHttpExceptions: true };
@@ -71,8 +73,10 @@ function applyPlan(ss, plan) {
   });
   // 使わないセッションのシートは隠す（PDF に出さない。手直し用に残す）
   ss.getSheetByName(plan.sheet === 'JE' ? 'EJ' : 'JE').hideSheet();
-  var settings = ss.getSheetByName(SETTINGS_SHEET);
-  if (settings) ss.deleteSheet(settings);
+  // プログラムのシート以外（設定・プロジェクト説明など）はコピーには不要。残すと PDF に出てしまう
+  ss.getSheets().forEach(function (sh) {
+    if (PROGRAM_SHEETS.indexOf(sh.getName()) === -1) ss.deleteSheet(sh);
+  });
 
   var obj = ss.getSheetByName(OBJECTIVES_SHEET);
   var layout = objectiveLayout(plan.objectives);
@@ -132,7 +136,10 @@ function createProgramFromMeeting(meeting, options) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var settings = readSettings(ss);
   var folder = folderFromUrl(settings.folderUrl);
-  var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, PROJECTS); } });
+  var projectSheet = ss.getSheetByName(PROJECTS_SHEET);
+  var projects = projectSheet ? parseProjectSheet(projectSheet.getDataRange().getValues()) : [];
+  var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, projects); } });
+  if (!projects.length) plan.warnings.unshift('「' + PROJECTS_SHEET + '」シートにデータが無いため、プロジェクトの説明は入りません');
 
   if (options && options.skipIfExists && folder.getFilesByName(plan.fileName).hasNext()) {
     Logger.log('第' + meeting.number + '回のプログラムは作成済みのため、何もしません');

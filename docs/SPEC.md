@@ -64,10 +64,13 @@
 ### 3.2 Pathways プロジェクト一覧（Google スプレッドシート、公開）
 
 - `https://docs.google.com/spreadsheets/d/1ku8Aspg64CnHnyuFV3JD-d_3APnX56VxT_Z2pM3OEMw/edit?gid=827204203`
-- 主な列：A = プロジェクト番号、B = Level、C = 英語プロジェクト名、D = 日本語プロジェクト名。「説明資料(英)」「説明資料(日)」列はプロジェクト説明 PDF（Google Drive、公開）。
-- ここからプロジェクト説明データ（プロジェクト名 → `{code, level, name_ja, name_en, desc_ja, desc_en}`）を作る。desc は説明 PDF の冒頭の説明文（Purpose / Overview / This project includes の部分）。
-- 開発者が `tools/build_projects.py`（Python + pymupdf）で生成し、`src/projects.js`（`PROJECTS`）としてスクリプトに同梱する。毎回の実行には含めない。一覧が更新されたら再実行する。
-- 説明資料の PDF のうち、Google ドライブで共有が限定されているものは取得できない（2026-10 時点で英語版の多くが該当）。説明が無いプロジェクトは見出しのみ記入し、警告を出す。PDF を手元に置けば（`cache/pathways/pdf/{番号}_{en|ja}.pdf`）ツールはそれを使う。
+- 主な列：A = プロジェクト番号、B = Level、C = 英語プロジェクト名、D = 日本語プロジェクト名。「説明資料(日)」列は日本語のプロジェクト説明 PDF（公開）。「Evaluation Form 英」列は Base Camp の Evaluation Resource へのリンク（会員のログインが必要）。列の位置は変わることがあるので、見出しの文字で探す。
+- ここからプロジェクト説明データ（`{row, code, level, name_en, name_ja, desc_ja, desc_en}`）を作る。desc_ja は日本語の説明 PDF の冒頭の説明文（紹介文・目的・概要）。
+- 開発者が `tools/build_projects.py`（Python + pymupdf）で CSV（`cache/pathways/project_descriptions.csv`、列は row / code / level / name_en / name_ja / desc_ja / desc_en）を作り、クラブ用スプレッドシートの「プロジェクト説明」シートに取り込む。スクリプトは実行時にこのシートを読む（無ければ説明なしで見出しのみ）。一覧が更新されたら再実行して取り込み直す。
+- 日本語は公開資料なので、`tools/fill_template_projects.ps1` で `template.xlsx` の「プロジェクト説明」シートにも入れておく（desc_en は空）。英語はクラブで CSV を保管し、必要なときに取り込む。
+- 日本語は Base Camp の Resources で公開されている資料から取る。英語は Path 購入者向けのため使わず、代わりに会員なら誰でも見られる Evaluation Resource の「Purpose Statement」を使う（会員が Base Camp から PDF を取得し `cache/pathways/eval/{番号}.pdf` に置く）。会員向け資料を含むので、CSV はリポジトリに入れずクラブ内だけで扱う。
+- 一覧のリンク誤りで別プロジェクトと同じ PDF を指している場合は、後に出てくる方の説明を空にする。
+- 説明が無いプロジェクトは見出しのみ記入し、警告を出す（2026-10 時点で日本語 62 件、英語 55 件 / 全 66 件）。
 - スピーチが日本語セッションでもプロジェクト名が英語で登録されていることがあるので、日英どちらの名前でも引けるようにする。新形式のリンクにある行番号でも引けるようにする。
 
 ## 4. テンプレート
@@ -194,7 +197,7 @@ Upcoming 表の、対象回を除いた最初の 2 件。形式は `11/05　木�
 | `src/main.js` | Apps Script 側：取得（UrlFetchApp）、スプレッドシートのコピーへの記入、PDF 出力、メニュー、定期実行 |
 | `src/dev.js` | 開発用の確認関数（メニューには出さない） |
 | `dist/Code.gs` | `npm run build` で `src/` をまとめたもの。Apps Script に貼り付ける |
-| `src/projects.js` | プロジェクト説明データ（`tools/build_projects.py` で生成） |
+| `tools/build_projects.py` | プロジェクト説明データ（CSV）の生成 |
 | `tests/` | Node のテスト（`npm test`）と匿名化済みフィクスチャ |
 
 メール送信は今回は対象外（後から追加できるようにしておく）。

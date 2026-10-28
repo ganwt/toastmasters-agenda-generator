@@ -274,7 +274,7 @@ function objectiveLayout(objectives) {
   return { cells: cells, hideRows: hideRows, extraSlots: Math.max(0, objectives.length - OBJECTIVE_SLOTS.length) };
 }
 
-// 例会ページのスピーチ → PROJECTS（src/projects.js）の該当プロジェクト。
+// 例会ページのスピーチ → プロジェクト説明（parseProjectSheet の結果）の該当プロジェクト。
 // 新形式のリンクにある行番号を優先し、無ければプロジェクト名（日英どちらでも）で探す
 function findProjectInfo(speech, projects) {
   var norm = function (s) { return (s || '').replace(/\s+/g, '').toLowerCase(); };
@@ -293,4 +293,22 @@ function selectNextMeeting(upcoming, today) {
 
 function selectTodaysMeeting(upcoming, today) {
   return (upcoming || []).filter(function (u) { return u.date === today; })[0] || null;
+}
+
+// クラブ用スプレッドシートの「プロジェクト説明」シート（tools/build_projects.py の CSV を取り込んだもの）を読む。
+// values は getDataRange().getValues() の形。列は 1 行目の見出しで探す
+var PROJECT_SHEET_COLUMNS = ['row', 'code', 'level', 'name_en', 'name_ja', 'desc_ja', 'desc_en'];
+
+function parseProjectSheet(values) {
+  if (!values || !values.length) return [];
+  var header = values[0].map(function (h) { return String(h).trim(); });
+  var col = {};
+  PROJECT_SHEET_COLUMNS.forEach(function (k) { col[k] = header.indexOf(k); });
+  var get = function (r, k) { return col[k] < 0 ? '' : String(r[col[k]] === undefined ? '' : r[col[k]]).trim(); };
+  return values.slice(1).filter(function (r) { return /^\d{4}$/.test(get(r, 'code')); }).map(function (r) {
+    var p = {};
+    PROJECT_SHEET_COLUMNS.forEach(function (k) { p[k] = get(r, k); });
+    p.row = parseInt(p.row, 10) || 0;
+    return p;
+  });
 }

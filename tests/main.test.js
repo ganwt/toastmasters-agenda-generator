@@ -63,10 +63,11 @@ const JE_TEMPLATE = {
 };
 
 function fakeSpreadsheet() {
-  const sheets = { JE: fakeSheet('JE', JE_TEMPLATE), EJ: fakeSheet('EJ'), 'プロジェクト目標': fakeSheet('プロジェクト目標'), '設定': fakeSheet('設定') };
+  const sheets = { JE: fakeSheet('JE', JE_TEMPLATE), EJ: fakeSheet('EJ'), 'プロジェクト目標': fakeSheet('プロジェクト目標'), '設定': fakeSheet('設定'), 'プロジェクト説明': fakeSheet('プロジェクト説明') };
   return {
     sheets,
     getSheetByName: (n) => sheets[n] || null,
+    getSheets: () => Object.values(sheets).map((sh) => ({ ...sh, getName: () => sh.name })),
     deleteSheet: (s) => { delete sheets[s.name]; }
   };
 }
@@ -85,6 +86,8 @@ test('applyPlan：384（JE）', () => {
   assert.equal(ss.sheets.EJ.hidden, true);
   assert.equal(je.hidden, false);
   assert.equal(ss.sheets['設定'], undefined);
+  assert.equal(ss.sheets['プロジェクト説明'], undefined);
+  assert.deepEqual(Object.keys(ss.sheets), ['JE', 'EJ', 'プロジェクト目標']);
 
   const obj = ss.sheets['プロジェクト目標'];
   assert.equal(obj.values.B3, 'L3: ボーカルバラエティについて');
