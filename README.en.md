@@ -13,7 +13,7 @@ Today, someone opens the Club Support System, copies the role assignments into a
   - Detects JE (Japanese session first) / EJ (English session first)
   - Adds rows automatically when a session has three prepared speeches
   - Fills the "Project Objectives" page with the Pathways project descriptions
-- First creates an editable spreadsheet; after checking and fixing it, "② Export PDF" turns it into a PDF (handy when someone cancels)
+- First creates an editable spreadsheet; after checking and fixing it, "② Export the latest program as PDF" turns it into a PDF (handy when someone cancels)
 - Can optionally create the program automatically on meeting days (off by default)
 
 ## Requirements
@@ -23,15 +23,17 @@ Today, someone opens the Club Support System, copies the role assignments into a
 
 ## Usage (for the member in charge of the program)
 
+A step-by-step guide with screenshots (Japanese) is in [docs/manual/MANUAL.md](docs/manual/MANUAL.md).
+
 ### Create a program
 
 1. Open the club's spreadsheet and choose **例会プログラム** → **① 次回のプログラムを作成** (Create next program)
 2. Confirm the meeting shown and click OK
 3. In the "作成しました" (created) dialog, click "開く" (open) to open the new spreadsheet
 4. Check it and edit anything directly if needed
-5. In that spreadsheet, choose **② PDF 出力** (Export PDF). The PDF is saved to the output folder
+5. **Go back to the template** and choose **② 最新のプログラムを PDF 出力** (Export the latest program as PDF). The most recently created/edited program is saved as a PDF in the same folder (you can also use "このプログラムを PDF 出力" in the created program's own menu, but each program file asks for authorization the first time)
 
-- If something changes (e.g. a cancellation), edit the spreadsheet and run ② again, or start over from ① (this creates another file with the same name; delete the old one).
+- If something changes (e.g. a cancellation), edit the spreadsheet and run ② again (it exports the most recently updated program), or start over from ① (this creates another file with the same name; delete the old one).
 - If a warning says a project description was not found, only the heading is filled in. Paste the description into the spreadsheet if needed.
 - To create a program for a meeting other than the next one, use "① 回を指定して作成（mtgid）" and enter the number after `mtgid=` in the meeting detail page URL.
 

@@ -312,3 +312,13 @@ function parseProjectSheet(values) {
     return p;
   });
 }
+
+// 出力フォルダのファイル（{ name, updated(Date), id }）から、最後に更新したプログラムを選ぶ。
+// 名前が buildFillPlan の fileName の形（新宿BTMC第386回例会プログラム20261105）のものだけを対象にする
+var PROGRAM_FILE_NAME = /^新宿BTMC第\d+回例会プログラム\d{8}$/;
+
+function selectLatestProgram(files) {
+  var programs = (files || []).filter(function (f) { return PROGRAM_FILE_NAME.test(f.name); });
+  programs.sort(function (a, b) { return b.updated - a.updated; });
+  return programs[0] || null;
+}

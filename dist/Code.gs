@@ -342,6 +342,16 @@ function parseProjectSheet(values) {
   });
 }
 
+// 出力フォルダのファイル（{ name, updated(Date), id }）から、最後に更新したプログラムを選ぶ。
+// 名前が buildFillPlan の fileName の形（新宿BTMC第386回例会プログラム20261105）のものだけを対象にする
+var PROGRAM_FILE_NAME = /^新宿BTMC第\d+回例会プログラム\d{8}$/;
+
+function selectLatestProgram(files) {
+  var programs = (files || []).filter(function (f) { return PROGRAM_FILE_NAME.test(f.name); });
+  programs.sort(function (a, b) { return b.updated - a.updated; });
+  return programs[0] || null;
+}
+
 // ===== html.js =====
 // 小さな HTML パーサー。Apps Script には DOM が無いため自前で木を作る。
 // クラブサポートシステムのページを読むのに必要な範囲だけを実装している。
@@ -694,17 +704,34 @@ function createProgramFromMeeting(meeting, options) {
   return { number: meeting.number, url: copy.getUrl(), folderName: folder.getName(), folderUrl: folder.getUrl(), warnings: plan.warnings };
 }
 
-// ② PDF 出力：①で作ったスプレッドシート（手直し後）を PDF にして同じフォルダに保存する
-function exportProgramPdf() {
+// ② PDF 出力：テンプレートのメニューから、出力フォルダで最後に更新したプログラム（手直し後）を PDF にする。
+// 作成したプログラム側のスクリプトは別プロジェクト扱いで毎回承認が必要になるため、操作はテンプレートに集める
+function findLatestProgram() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (ss.getSheetByName(SETTINGS_SHEET)) {
-    throw new Error('ここはクラブ用のテンプレートです。「① プログラム作成」で作ったスプレッドシートを開いてから実行してください');
+  var folder = outputFolder(ss, readSettings(ss));
+  var files = [];
+  var it = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  while (it.hasNext()) {
+    var f = it.next();
+    files.push({ id: f.getId(), name: f.getName(), updated: f.getLastUpdated() });
   }
-  SpreadsheetApp.flush();
-  var folder = DriveApp.getFileById(ss.getId()).getParents().next();
-  var pdf = folder.createFile(exportPdf(ss, ss.getName()));
+  var latest = selectLatestProgram(files);
+  return latest ? { file: latest, folder: folder } : null;
+}
+
+function exportProgramPdf(target) {
+  var pdf = target.folder.createFile(exportPdf(SpreadsheetApp.openById(target.file.id), target.file.name));
   Logger.log('PDF を保存しました：' + pdf.getUrl());
   return { url: pdf.getUrl() };
+}
+
+// 作成したプログラムのメニューから：開いているこのファイルを PDF にして、同じフォルダに保存する
+function menuExportCurrentPdf() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  SpreadsheetApp.flush();
+  var target = { file: { id: ss.getId(), name: ss.getName() }, folder: DriveApp.getFileById(ss.getId()).getParents().next() };
+  var r = exportProgramPdf(target);
+  showLink('PDF を保存しました', '「' + target.file.name + '.pdf」を保存しました。', r.url);
 }
 
 // 定期実行：例会の当日だけ、その回のプログラムを作る（作成済みなら何もしない）。PDF は人が確認してから出す
@@ -726,10 +753,18 @@ function findScheduleTriggers() {
 }
 
 function onOpen() {
+  // 作成したプログラム（テンプレートのコピー）には、そのファイル自身を PDF にする項目だけを出す。
+  // コピーのスクリプトは別プロジェクト扱いなので、ファイルごとに初回だけ承認が必要になる
+  if (!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SETTINGS_SHEET)) {
+    SpreadsheetApp.getUi().createMenu('例会プログラム')
+      .addItem('このプログラムを PDF 出力', 'menuExportCurrentPdf')
+      .addToUi();
+    return;
+  }
   SpreadsheetApp.getUi().createMenu('例会プログラム')
     .addItem('① 次回のプログラムを作成', 'menuCreateNextProgram')
     .addItem('① 回を指定して作成（mtgid）', 'menuCreateProgramById')
-    .addItem('② PDF 出力', 'menuExportPdf')
+    .addItem('② 最新のプログラムを PDF 出力', 'menuExportPdf')
     .addSeparator()
     .addItem('定期実行をオンにする', 'menuScheduleOn')
     .addItem('定期実行をオフにする', 'menuScheduleOff')
@@ -749,7 +784,7 @@ function warningText(warnings) {
 function showCreated(r) {
   // 保存先を必ず見せる（設定の B2 が古いフォルダのままだと、思わぬ場所に作られるため）
   var where = '<br><br>保存先：<a href="' + r.folderUrl + '" target="_blank">' + r.folderName + '</a>';
-  showLink('作成しました', '第' + r.number + '回のプログラムを作成しました。開いて内容を確認し、必要なら手直ししてから「② PDF 出力」を実行してください。' + where + warningText(r.warnings), r.url);
+  showLink('作成しました', '第' + r.number + '回のプログラムを作成しました。開いて内容を確認し、必要なら手直ししてから、このスプレッドシート（テンプレート）のメニューで「② 最新のプログラムを PDF 出力」を実行してください。' + where + warningText(r.warnings), r.url);
 }
 
 function menuCreateNextProgram() {
@@ -771,8 +806,13 @@ function menuCreateProgramById() {
 }
 
 function menuExportPdf() {
-  var r = exportProgramPdf();
-  showLink('PDF を保存しました', 'PDF を保存しました。', r.url);
+  var ui = SpreadsheetApp.getUi();
+  var target = findLatestProgram();
+  if (!target) { ui.alert('出力フォルダにプログラムが見つかりません。先に「① プログラム作成」を実行してください'); return; }
+  var ok = ui.alert('PDF 出力', '「' + target.file.name + '」を PDF にします。よろしいですか？\n（手直しした内容もそのまま PDF になります）', ui.ButtonSet.OK_CANCEL);
+  if (ok !== ui.Button.OK) return;
+  var r = exportProgramPdf(target);
+  showLink('PDF を保存しました', '「' + target.file.name + '.pdf」を保存しました。', r.url);
 }
 
 function menuScheduleOn() {

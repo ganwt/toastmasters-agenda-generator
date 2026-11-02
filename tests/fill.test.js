@@ -318,3 +318,16 @@ test('対象回の選択（Upcoming）', () => {
   assert.equal(gas.selectTodaysMeeting(upcoming, '2026/11/05').mtgid, 259);
   assert.equal(gas.selectTodaysMeeting(upcoming, '2026/11/12'), null); // 例会の無い木曜
 });
+
+test('PDF にするプログラムの選択：名前の形が合うもののうち、最後に更新したもの', () => {
+  const files = [
+    { id: 'a', name: '新宿BTMC第385回例会プログラム20261015', updated: new Date('2026-10-15T10:00:00Z') },
+    { id: 'b', name: '新宿BTMC第386回例会プログラム20261105', updated: new Date('2026-11-02T13:00:00Z') },
+    { id: 't', name: 'template', updated: new Date('2026-11-03T00:00:00Z') }, // テンプレートは対象外
+    { id: 'p', name: '新宿BTMC第386回例会プログラム20261105.pdf', updated: new Date('2026-11-03T01:00:00Z') } // PDF も対象外
+  ];
+  assert.equal(gas.selectLatestProgram(files).id, 'b');
+  assert.equal(gas.selectLatestProgram([{ id: 't', name: 'template', updated: new Date() }]), null);
+  // fileName と同じ形であること
+  assert.match(gas.buildFillPlan(meeting('384'), { zoom: ZOOM }).fileName, gas.PROGRAM_FILE_NAME);
+});
