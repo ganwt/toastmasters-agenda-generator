@@ -57,11 +57,11 @@ The warning appears because this is a club-made script that has not gone through
 
 Use a club Google account (e.g. the PR or venue account).
 
-1. **Output folder**: create a folder such as "例会プログラム" on Google Drive and copy its URL
-2. **Template**: download `template.xlsx` from this repository, upload it to Google Drive, right-click → "Open with" → "Google Sheets", then "File" → "Save as Google Sheets"
+1. **Folder**: create a folder such as "例会プログラム" in the club account's Google Drive. Programs and PDFs are normally saved in the same folder as the template
+2. **Template**: download `template.xlsx` from this repository, upload it to the folder from step 1, right-click → "Open with" → "Google Sheets", then "File" → "Save as Google Sheets"
 3. **Settings**: in the `設定` sheet of that spreadsheet, enter
    - B1: the Zoom URL, ID and passcode (double-click the cell before pasting so the lines stay in one cell)
-   - B2: the folder URL from step 1
+   - B2: leave empty (files are saved in the template's folder). Enter a folder URL only if you want to save elsewhere
 4. **(Optional) English project descriptions**: the Japanese descriptions are already in the template. To add English ones too, replace the `プロジェクト説明` sheet as described in "Project description data" below
 5. **Script**: open "Extensions" → "Apps Script", paste the entire contents of [`dist/Code.gs`](dist/Code.gs), and save. Reload the spreadsheet and the "例会プログラム" menu appears
 6. **Share**: share the spreadsheet and the output folder with the members in charge as "Editor" (not outside the club)

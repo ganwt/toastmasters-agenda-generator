@@ -28,7 +28,7 @@ function fetchMeeting(mtgid) {
   return parseMeeting(page, members, mtgid);
 }
 
-// 「設定」シート：B1 = Zoom 情報（複数行）、B2 = 出力先フォルダの URL
+// 「設定」シート：B1 = Zoom 情報（複数行）、B2 = 出力先フォルダの URL（空欄ならテンプレートと同じフォルダ）
 function readSettings(ss) {
   var sh = ss.getSheetByName(SETTINGS_SHEET);
   if (!sh) throw new Error('「' + SETTINGS_SHEET + '」シートがありません');
@@ -40,9 +40,14 @@ function readSettings(ss) {
 
 function folderFromUrl(url) {
   var m = /folders\/([A-Za-z0-9_-]+)/.exec(url);
-  var id = m ? m[1] : url;
-  if (!id) throw new Error('「設定」シートの B2 に出力先フォルダの URL を入れてください');
-  return DriveApp.getFolderById(id);
+  return DriveApp.getFolderById(m ? m[1] : url);
+}
+
+// 出力先：B2 に URL があればそのフォルダ、空欄ならテンプレート（クラブ用スプレッドシート）と同じフォルダ。
+// 共有フォルダにテンプレートを置けば、作成したプログラムも自然にそこへ入るようにするため
+function outputFolder(ss, settings) {
+  if (settings.folderUrl) return folderFromUrl(settings.folderUrl);
+  return DriveApp.getFileById(ss.getId()).getParents().next();
 }
 
 var AGENDA_LAST_COLUMN = 13; // M 列まで（N・O 列は右側のゲスト・会員欄）
@@ -135,7 +140,7 @@ function createProgram(mtgid) {
 function createProgramFromMeeting(meeting, options) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var settings = readSettings(ss);
-  var folder = folderFromUrl(settings.folderUrl);
+  var folder = outputFolder(ss, settings);
   var projectSheet = ss.getSheetByName(PROJECTS_SHEET);
   var projects = projectSheet ? parseProjectSheet(projectSheet.getDataRange().getValues()) : [];
   var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, projects); } });
@@ -152,7 +157,7 @@ function createProgramFromMeeting(meeting, options) {
 
   Logger.log('第' + meeting.number + '回のプログラムを作成しました：' + copy.getUrl());
   plan.warnings.forEach(function (w) { Logger.log('警告：' + w); });
-  return { number: meeting.number, url: copy.getUrl(), warnings: plan.warnings };
+  return { number: meeting.number, url: copy.getUrl(), folderName: folder.getName(), folderUrl: folder.getUrl(), warnings: plan.warnings };
 }
 
 // ② PDF 出力：①で作ったスプレッドシート（手直し後）を PDF にして同じフォルダに保存する
@@ -200,7 +205,7 @@ function onOpen() {
 function showLink(title, message, url) {
   var html = '<p style="font-family:sans-serif">' + message + '</p>' +
     '<p style="font-family:sans-serif"><a href="' + url + '" target="_blank">開く</a></p>';
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(420).setHeight(240), title);
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(440).setHeight(280), title);
 }
 
 function warningText(warnings) {
@@ -208,7 +213,9 @@ function warningText(warnings) {
 }
 
 function showCreated(r) {
-  showLink('作成しました', '第' + r.number + '回のプログラムを作成しました。開いて内容を確認し、必要なら手直ししてから「② PDF 出力」を実行してください。' + warningText(r.warnings), r.url);
+  // 保存先を必ず見せる（設定の B2 が古いフォルダのままだと、思わぬ場所に作られるため）
+  var where = '<br><br>保存先：<a href="' + r.folderUrl + '" target="_blank">' + r.folderName + '</a>';
+  showLink('作成しました', '第' + r.number + '回のプログラムを作成しました。開いて内容を確認し、必要なら手直ししてから「② PDF 出力」を実行してください。' + where + warningText(r.warnings), r.url);
 }
 
 function menuCreateNextProgram() {
