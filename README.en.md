@@ -13,6 +13,8 @@ Today, someone opens the Club Support System, copies the role assignments into a
   - Detects JE (Japanese session first) / EJ (English session first)
   - Adds rows automatically when a session has three prepared speeches
   - Fills the "Project Objectives" page with the Pathways project descriptions
+  - Inserts events (induction ceremony, workshop, …) at the position and length written in the "イベント" (Events) sheet
+  - Reduces the number of Table Topics speakers when the meeting would end after 21:15
 - First creates an editable spreadsheet; after checking and fixing it, "② Export the latest program as PDF" turns it into a PDF (handy when someone cancels)
 - Can optionally create the program automatically on meeting days (off by default)
 
@@ -35,7 +37,20 @@ A step-by-step guide with screenshots (Japanese) is in [docs/manual/MANUAL.md](d
 
 - If something changes (e.g. a cancellation), edit the spreadsheet and run ② again (it exports the most recently updated program), or start over from ① (this creates another file with the same name; delete the old one).
 - If a warning says a project description was not found, only the heading is filled in. Paste the description into the spreadsheet if needed.
+- If the meeting would end after 21:15, Table Topics speakers are removed alternately from the second and first sessions (at least one is kept per session), and a warning is shown. The rows are only hidden; to restore one, unhide the row and set column C (duration) back to 0:03.
 - To create a program for a meeting other than the next one, use "① 回を指定して作成（mtgid）" and enter the number after `mtgid=` in the meeting detail page URL.
+
+### Meetings with events (induction ceremony, workshop, …)
+
+Before running ①, add one row per event to the template's **イベント** (Events) sheet:
+
+| 例会回 (meeting no.) | イベント名 (name) | 挿入位置 (position) | 所要時間（分） (minutes) | 担当者 (person) |
+|---|---|---|---|---|
+| 386 | 入会式 | 休憩の前 | 15 | (blank = taken from the meeting page) |
+
+- Choose the position from the dropdown (after the first session's speeches / after the first Table Topics / before the break / after the break / after the second session's speeches / after the second Table Topics / before the awards / before the closing).
+- If the person is blank, it is taken from the matching role on the meeting page (e.g. "入会式担当").
+- If the meeting page has an event role that is not in the sheet, a warning is shown. Add it to the sheet and run ① again.
 
 ### First use (once)
 
@@ -70,6 +85,10 @@ Use a club Google account (e.g. the PR or venue account).
 
 To update the script, paste the new `dist/Code.gs` the same way as step 5 (programs already created are not affected).
 
+The template's version and change history are in the "更新履歴" (history) sheet of `template.xlsx`.
+
+If your template is older and has no "イベント" sheet, add a sheet named `イベント` with `例会回`, `イベント名`, `挿入位置`, `所要時間（分）`, `担当者` in row 1 (a dropdown for the position column is handy; see the options above).
+
 ### Project description data
 
 The descriptions on the "Project Objectives" page come from the `プロジェクト説明` sheet. Projects without a description get only the heading.
@@ -94,6 +113,7 @@ To get data that includes English, use one of these:
 | 4 | Extra rows for three-speech sessions | ✅ Done |
 | 5 | Pathways project description data | ✅ Done (English descriptions partly missing) |
 | 6 | Menu, scheduled runs (off by default), sharing and setup guide | ✅ Done |
+| 7 | Events, Table Topics adjustment to finish by 21:15 | ✅ Done |
 
 ## Layout
 

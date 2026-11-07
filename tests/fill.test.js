@@ -331,3 +331,86 @@ test('PDF にするプログラムの選択：名前の形が合うもののう�
   // fileName と同じ形であること
   assert.match(gas.buildFillPlan(meeting('384'), { zoom: ZOOM }).fileName, gas.PROGRAM_FILE_NAME);
 });
+
+test('parseEventSheet：その回の行だけ、見出しの文字で列を探す', () => {
+  const values = [
+    ['例会回', 'イベント名', '挿入位置', '所要時間（分）', '担当者'],
+    [384, '入会式', '休憩の前', 15, ''],
+    ['第385回', 'ワークショップ', '前半スピーチの後', '20', '山田'],
+    [384, '', '閉会の前', 5, ''],
+    ['384', '役員就任式', '閉会の前', '', '佐藤']
+  ];
+  assert.deepEqual(JSON.parse(JSON.stringify(gas.parseEventSheet(values, 384))), [
+    { name: '入会式', position: '休憩の前', minutes: 15, person: '' },
+    { name: '役員就任式', position: '閉会の前', minutes: 0, person: '佐藤' }
+  ]);
+  assert.equal(gas.parseEventSheet(values, 385)[0].name, 'ワークショップ');
+  assert.equal(gas.parseEventSheet([], 384).length, 0);
+});
+
+test('イベントの挿入（384・休憩の前）：担当者はページの役割から、下の行はずれる', () => {
+  const m = meeting('384', 257);
+  m.roles['入会式担当'] = '山田 太郎';
+  const plan = gas.buildFillPlan(m, { zoom: ZOOM, events: [{ name: '入会式', position: '休憩の前', minutes: 15, person: '' }] });
+  const c = cellMap(plan);
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.inserts)), [{ after: 40, count: 1, from: 41 }]);
+  assert.equal(c.E41, '入会式');
+  assert.equal(c.C41, '15分');
+  assert.equal(c.J41, '山田 太郎');
+  // 後半の記入先は 1 行下にずれる
+  assert.equal(c.J46, m.speeches.en[0].speaker);
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.timing)), { endRow: 70, tt: [[32, 33, 34], [56, 57, 58]] });
+  assert.ok(!plan.warnings.some((w) => w.includes('入会式担当')));
+});
+
+test('イベント：位置が選択肢に無い・ページの役割がシートに無いときは警告', () => {
+  const m = meeting('384', 257);
+  m.roles['ワークショップ'] = '山田 太郎';
+  const plan = gas.buildFillPlan(m, { zoom: ZOOM, events: [{ name: '虎の穴', position: 'どこか', minutes: 10, person: '' }] });
+  assert.equal(plan.inserts.length, 0);
+  assert.ok(plan.warnings.some((w) => w.includes('「どこか」が選択肢にない')));
+  assert.ok(plan.warnings.some((w) => w.includes('「ワークショップ」（担当：山田 太郎）')));
+});
+
+test('イベントとスピーチ 3 本が同じ位置：スピーチのブロックの後にイベント', () => {
+  const m = meeting('384', 257);
+  const base = m.speeches.en[0];
+  m.speeches.en = [1, 2, 3].map((slot) => ({ ...base, slot }));
+  const events = [
+    { name: 'A', position: '後半スピーチの後', minutes: 5, person: '' },
+    { name: 'B', position: '後半スピーチの後', minutes: 5, person: '' },
+    { name: 'C', position: '前半スピーチの後', minutes: 5, person: '' }
+  ];
+  const plan = gas.buildFillPlan(m, { zoom: ZOOM, events });
+  const c = cellMap(plan);
+  // C：前半 28 行の後（29 行目の前）。休憩の行 41 は、C の分ずれて 42 から複写
+  // 後半スピーチ 3 のブロック（52 行の後に 4 行）→ A → B、最後に論評 3（論評 2 の 61 行はここまでの 7 行分ずれて 68）
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.inserts)), [
+    { after: 28, count: 1, from: 41 },
+    { after: 53, count: 4, from: 50, label: 'F54' },
+    { after: 57, count: 1, from: 42 },
+    { after: 58, count: 1, from: 42 },
+    { after: 68, count: 1, from: 68, label: 'F69' }
+  ]);
+  assert.equal(c.E29, 'C');
+  assert.equal(c.E58, 'A');
+  assert.equal(c.E59, 'B');
+  assert.equal(c.F55, gas.formatSpeechTitle(base, 'en')); // 3 本目のタイトル（F50 は C の分ずれて F51、その 4 行下）
+});
+
+test('tableTopicsToHide：後半・前半の順に交互に、③ から。各セッション 1 人は残す', () => {
+  const tt = [[32, 33, 34], [55, 56, 57]];
+  assert.deepEqual([...gas.tableTopicsToHide(0, tt)], []);
+  assert.deepEqual([...gas.tableTopicsToHide(-5, tt)], []);
+  assert.deepEqual([...gas.tableTopicsToHide(1, tt)], [57]);
+  assert.deepEqual([...gas.tableTopicsToHide(4, tt)], [57, 34]);
+  assert.deepEqual([...gas.tableTopicsToHide(12, tt)], [57, 34, 56, 33]);
+  assert.deepEqual([...gas.tableTopicsToHide(30, tt)], [57, 34, 56, 33]);
+});
+
+test('clockMinutes / formatClock', () => {
+  assert.equal(gas.clockMinutes('21:27'), 21 * 60 + 27);
+  assert.equal(gas.clockMinutes('0:01'), 1);
+  assert.equal(gas.clockMinutes(''), 0);
+  assert.equal(gas.formatClock(21 * 60 + 5), '21:05');
+});

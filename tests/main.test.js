@@ -137,3 +137,13 @@ test('applyPlan：前半 3 本（行の挿入）', () => {
   assert.equal(v.N29, '□');
   assert.equal(v.O29, 'Alex Smithさん');
 });
+
+test('applyInserts：イベントを「休憩」より上に入れると、複写元は挿入した分だけ下から取る', () => {
+  const sh = fakeSheet('JE', { E41: '休憩', K41: '書式', B29: '=B28+C28', B30: '=B29+C29' });
+  gas.applyInserts(sh, [{ after: 28, count: 1, from: 41 }]);
+  const v = sh.values;
+  assert.equal(v.K29, '書式'); // 42 行目に移った「休憩」の行から複写
+  assert.equal(v.E42, '休憩');
+  assert.equal(v.B29, '=B28+C28');
+  assert.equal(v.B30, '=B29+C29');
+});

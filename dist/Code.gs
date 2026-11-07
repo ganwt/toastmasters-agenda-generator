@@ -67,6 +67,26 @@ var SESSION_CELLS = {
   }
 };
 
+// イベント（入会式・ワークショップなど）の挿入位置。値はテンプレートの行番号で、この行の前に 1 行入れる。
+// 右側のゲスト・会員欄の見出しと □（〜25 行目）より下だけにする（上に入れると右欄がずれるため）
+var EVENT_POSITIONS = {
+  '前半スピーチの後': 29,
+  '前半テーブルトピックの後': 35,
+  '休憩の前': 41,
+  '休憩の後': 42,
+  '後半スピーチの後': 53,
+  '後半テーブルトピックの後': 58,
+  '表彰の前': 65,
+  '閉会の前': 67
+};
+var EVENT_FORMAT_ROW = 41; // 挿入した行の書式の複写元（「休憩」の行）
+
+// 終了予定の調整：閉会（Adjournment）の行の開始時刻 + 所要時間が 21:15 を過ぎたら、テーブルトピックの回答者を減らす
+var END_ROW = 69;
+var END_LIMIT = 21 * 60 + 15;
+var TT_ROWS = { first: [32, 33, 34], second: [55, 56, 57] }; // ①②③
+var TT_MINUTES = 3;
+
 var GUEST_ROWS = { first: 7, last: 17 };
 var MEMBER_ROWS = { first: 19, last: 70 };
 var TEMPLATE_CHECKBOX_ROWS = { guests: [7, 12], members: [19, 24] };
@@ -124,7 +144,8 @@ function isAttending(mark) {
   return mark === '○' || mark.indexOf('◎') === 0;
 }
 
-// settings: { zoom: 'Zoom の URL・ID・パスコード（複数行）', findProject: function(speech) → {desc_ja, desc_en} | null }
+// settings: { zoom: 'Zoom の URL・ID・パスコード（複数行）', findProject: function(speech) → {desc_ja, desc_en} | null,
+//             events: その回のイベント（parseEventSheet の結果） }
 function buildFillPlan(meeting, settings) {
   settings = settings || {};
   var warnings = [];
@@ -132,8 +153,16 @@ function buildFillPlan(meeting, settings) {
   var role = function (name) { return meeting.roles[name] || ''; };
   var order = meeting.format === 'JE' ? ['ja', 'en'] : ['en', 'ja'];
 
-  // スピーチ 3 本のセッションは行を挿入する。セル番地はテンプレートの行番号で書き、挿入後の番号に直して記録する
-  var inserts = planInserts(meeting, order);
+  var events = (settings.events || []).filter(function (e) {
+    if (EVENT_POSITIONS[e.position]) return true;
+    warnings.push('イベント「' + e.name + '」の挿入位置「' + e.position + '」が選択肢にないため、入れていません');
+    return false;
+  });
+  eventRoleWarnings(meeting.roles, events, warnings);
+
+  // スピーチ 3 本のセッションとイベントは行を挿入する。セル番地はテンプレートの行番号で書き、挿入後の番号に直して記録する
+  var inserts = planInserts(meeting, order, events);
+  var placed = placeInserts(inserts);
   var at = function (cell) {
     var m = /^([A-Z]+)(\d+)$/.exec(cell);
     return m[1] + shiftRow(inserts, parseInt(m[2], 10));
@@ -201,6 +230,18 @@ function buildFillPlan(meeting, settings) {
     set(c.ge, role(r.ge));
   });
 
+  // イベントの行（「休憩」の行の書式で挿入済み）。担当者が空欄なら例会ページの同じ名前の役割から取る
+  placed.forEach(function (ins) {
+    if (!ins.event) return;
+    var e = ins.event;
+    var row = ins.after + 1;
+    var person = e.person || eventRolePerson(meeting.roles, e.name);
+    setAt('E' + row, e.name);
+    minutesAt('C' + row, e.minutes);
+    setAt('J' + row, person);
+    if (!e.minutes) warnings.push('イベント「' + e.name + '」の所要時間が入っていません（0 分）');
+  });
+
   // 右側の欄：ゲスト
   var guests = (meeting.guests || []).filter(function (g) { return g.indexOf('キャンセル') === -1; });
   var guestCapacity = GUEST_ROWS.last - GUEST_ROWS.first + 1;
@@ -224,11 +265,17 @@ function buildFillPlan(meeting, settings) {
   var p = parseDateParts(meeting.date);
   return {
     sheet: meeting.format,
-    inserts: inserts.map(function (ins) {
-      var after = shiftRow(inserts, ins.after);
-      return { after: after, count: ins.count, from: shiftRow(inserts, ins.from), label: 'F' + (after + 1) };
+    inserts: placed.map(function (ins) {
+      var r = { after: ins.after, count: ins.count, from: ins.from };
+      if (!ins.event) r.label = 'F' + (ins.after + 1);
+      return r;
     }),
     cells: cells,
+    // 終了予定の調整用（挿入後の行番号）。シートで時刻を計算してから tableTopicsToHide で決める
+    timing: {
+      endRow: shiftRow(inserts, END_ROW),
+      tt: [TT_ROWS.first, TT_ROWS.second].map(function (rows) { return rows.map(function (r) { return shiftRow(inserts, r); }); })
+    },
     objectives: buildObjectives(objectives, settings, warnings),
     fileName: '新宿BTMC第' + meeting.number + '回例会プログラム' + p.y + pad2(p.m) + pad2(p.d),
     warnings: warnings
@@ -236,8 +283,9 @@ function buildFillPlan(meeting, settings) {
 }
 
 // 3 本目のスピーチがあるセッションごとに、スピーチ 2 のブロック（4 行）と論評 2 の行（1 行）を複写して挿入する。
-// after / from はテンプレートの行番号。上から順に並べる
-function planInserts(meeting, order) {
+// イベントは 1 行ずつ、指定位置の行の前に挿入する。
+// after / from はテンプレートの行番号。上から順に並べ、同じ位置ではスピーチのブロックを先、イベントはシートの順
+function planInserts(meeting, order, events) {
   var inserts = [];
   ['first', 'second'].forEach(function (pos, i) {
     var speeches = meeting.speeches[order[i]] || [];
@@ -247,7 +295,25 @@ function planInserts(meeting, order) {
     inserts.push({ after: c.speech2Rows[1], count: 4, from: c.speech2Rows[0] });
     inserts.push({ after: evalRow, count: 1, from: evalRow });
   });
-  return inserts.sort(function (a, b) { return a.after - b.after; });
+  (events || []).forEach(function (e) {
+    inserts.push({ after: EVENT_POSITIONS[e.position] - 1, count: 1, from: EVENT_FORMAT_ROW, event: e });
+  });
+  return inserts.sort(function (a, b) { return (a.after - b.after) || ((a.event ? 1 : 0) - (b.event ? 1 : 0)); });
+}
+
+// 上から順に挿入したときの、実際の挿入位置（after）と複写元（from）の行番号。
+// 同じ位置に複数あるときは、先に挿入した行の下に入れる
+function placeInserts(inserts) {
+  return inserts.map(function (ins, i) {
+    var done = inserts.slice(0, i);
+    var after = ins.after;
+    var from = ins.from;
+    done.forEach(function (d) {
+      after += d.count;
+      if (d.after < ins.from) from += d.count;
+    });
+    return { after: after, count: ins.count, from: from, event: ins.event };
+  });
 }
 
 // テンプレートの行番号 → 挿入後の行番号
@@ -350,6 +416,84 @@ function selectLatestProgram(files) {
   var programs = (files || []).filter(function (f) { return PROGRAM_FILE_NAME.test(f.name); });
   programs.sort(function (a, b) { return b.updated - a.updated; });
   return programs[0] || null;
+}
+
+// 「イベント」シート（例会回 / イベント名 / 挿入位置 / 所要時間（分） / 担当者）から、その回の行を読む。
+// values は getDataRange().getValues() の形。列は 1 行目の見出しの文字で探す
+function parseEventSheet(values, number) {
+  if (!values || !values.length) return [];
+  var header = values[0].map(function (h) { return String(h); });
+  var col = function (word) {
+    for (var i = 0; i < header.length; i++) if (header[i].indexOf(word) !== -1) return i;
+    return -1;
+  };
+  var c = { number: col('回'), name: col('イベント'), position: col('位置'), minutes: col('時間'), person: col('担当') };
+  var get = function (r, k) { return c[k] < 0 || r[c[k]] === undefined || r[c[k]] === null ? '' : String(r[c[k]]).trim(); };
+  return values.slice(1).filter(function (r) {
+    return get(r, 'name') && parseInt(get(r, 'number').replace(/[^\d]/g, ''), 10) === number;
+  }).map(function (r) {
+    return { name: get(r, 'name'), position: get(r, 'position'), minutes: parseInt(get(r, 'minutes'), 10) || 0, person: get(r, 'person') };
+  });
+}
+
+// 例会ページの役割のうち、決まった役割（TMOE・スピーチ・論評など）以外で担当者がいるもの（入会式担当、ワークショップなど）
+function extraRoles(roles) {
+  var known = { 'スピーチ': 1, 'Speach': 1, '今夜の言葉（日英）': 1 };
+  HELPER_ROLES.forEach(function (r) { known[r] = 1; });
+  ['ja', 'en'].forEach(function (lang) {
+    var r = SESSION_ROLES[lang];
+    [r.tmoe, r.ttm, r.ge].concat(r.evals).forEach(function (n) { known[n] = 1; });
+  });
+  return Object.keys(roles || {}).filter(function (k) {
+    return roles[k] && !known[k] && !/^(テーブルトピックス回答者|Table Topics Speaker)\d*$/.test(k);
+  });
+}
+
+// イベント名と役割名は「入会式」と「入会式担当」のように完全には一致しないので、どちらかを含めば同じとみなす
+function eventMatchesRole(eventName, role) {
+  var norm = function (s) { return s.replace(/\s+/g, '').toLowerCase(); };
+  var e = norm(eventName);
+  var r = norm(role);
+  return !!e && !!r && (r.indexOf(e) !== -1 || e.indexOf(r) !== -1);
+}
+
+function eventRolePerson(roles, eventName) {
+  var hit = extraRoles(roles).filter(function (k) { return eventMatchesRole(eventName, k); })[0];
+  return hit ? roles[hit] : '';
+}
+
+// 例会ページにイベントらしい役割があるのに「イベント」シートに無いときは知らせる（位置と時間は人が決める）
+function eventRoleWarnings(roles, events, warnings) {
+  extraRoles(roles).forEach(function (k) {
+    if (events.some(function (e) { return eventMatchesRole(e.name, k); })) return;
+    warnings.push('例会ページに「' + k + '」（担当：' + roles[k] + '）がありますが、「イベント」シートにありません。必要なら追加して作り直してください');
+  });
+}
+
+// 終了予定が END_LIMIT を overMinutes 分過ぎるとき、隠すテーブルトピックの行。
+// 後半・前半の順に交互に、③ → ② の順で減らす。各セッション 1 人は残す
+function tableTopicsToHide(overMinutes, tt) {
+  var left = [tt[0].slice(), tt[1].slice()];
+  var rows = [];
+  var s = 1;
+  while (overMinutes > 0 && (left[0].length > 1 || left[1].length > 1)) {
+    if (left[s].length > 1) {
+      rows.push(left[s].pop());
+      overMinutes -= TT_MINUTES;
+    }
+    s = 1 - s;
+  }
+  return rows;
+}
+
+// '21:27' → 1287（分）。空欄は 0
+function clockMinutes(text) {
+  var m = /(\d+):(\d{2})/.exec(text || '');
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0;
+}
+
+function formatClock(minutes) {
+  return Math.floor(minutes / 60) + ':' + pad2(minutes % 60);
 }
 
 // ===== html.js =====
@@ -549,6 +693,7 @@ var SITE_BASE = 'https://tmcsupport.coresv.com/shinjukubilingualpha/';
 var SETTINGS_SHEET = '設定';
 var PROJECTS_SHEET = 'プロジェクト説明'; // tools/build_projects.py の CSV を取り込んだシート（クラブ内のみ）
 var OBJECTIVES_SHEET = 'プロジェクト目標';
+var EVENTS_SHEET = 'イベント'; // 入会式・ワークショップなど、その回だけの項目（例会回 / イベント名 / 挿入位置 / 所要時間 / 担当者）
 var PROGRAM_SHEETS = ['JE', 'EJ', OBJECTIVES_SHEET];
 
 function fetchText(url, options) {
@@ -601,12 +746,15 @@ var AGENDA_LAST_COLUMN = 13; // M 列まで（N・O 列は右側のゲスト・�
 function applyInserts(sheet, inserts) {
   (inserts || []).forEach(function (ins) {
     sheet.insertRowsAfter(ins.after, ins.count);
-    sheet.getRange(ins.from, 1, ins.count, AGENDA_LAST_COLUMN)
+    // 複写元が挿入位置より下にある場合（イベントを「休憩」より上に入れるとき）は、挿入した分だけ下にずれている
+    var from = ins.from > ins.after ? ins.from + ins.count : ins.from;
+    sheet.getRange(from, 1, ins.count, AGENDA_LAST_COLUMN)
       .copyTo(sheet.getRange(ins.after + 1, 1, ins.count, AGENDA_LAST_COLUMN));
-    for (var k = 0; k < ins.count; k++) sheet.setRowHeight(ins.after + 1 + k, sheet.getRowHeight(ins.from + k));
+    for (var k = 0; k < ins.count; k++) sheet.setRowHeight(ins.after + 1 + k, sheet.getRowHeight(from + k));
     for (var r = ins.after + 1; r <= ins.after + ins.count + 1; r++) {
       sheet.getRange(r, 2).setFormula('=B' + (r - 1) + '+C' + (r - 1));
     }
+    if (!ins.label) return; // イベントの行は見出しを記入内容で書く
     var label = sheet.getRange(ins.label);
     label.setValue(String(label.getValue()).replace(/2(\s*)$/, '3$1'));
   });
@@ -687,7 +835,13 @@ function createProgramFromMeeting(meeting, options) {
   var folder = outputFolder(ss, settings);
   var projectSheet = ss.getSheetByName(PROJECTS_SHEET);
   var projects = projectSheet ? parseProjectSheet(projectSheet.getDataRange().getValues()) : [];
-  var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, projects); } });
+  var eventSheet = ss.getSheetByName(EVENTS_SHEET);
+  var events = eventSheet ? parseEventSheet(eventSheet.getDataRange().getValues(), meeting.number) : [];
+  var plan = buildFillPlan(meeting, {
+    zoom: settings.zoom,
+    findProject: function (s) { return findProjectInfo(s, projects); },
+    events: events
+  });
   if (!projects.length) plan.warnings.unshift('「' + PROJECTS_SHEET + '」シートにデータが無いため、プロジェクトの説明は入りません');
 
   if (options && options.skipIfExists && folder.getFilesByName(plan.fileName).hasNext()) {
@@ -697,11 +851,34 @@ function createProgramFromMeeting(meeting, options) {
   var copyFile = DriveApp.getFileById(ss.getId()).makeCopy(plan.fileName, folder);
   var copy = SpreadsheetApp.openById(copyFile.getId());
   applyPlan(copy, plan);
-  SpreadsheetApp.flush();
+  fitEndTime(copy.getSheetByName(plan.sheet), plan);
 
   Logger.log('第' + meeting.number + '回のプログラムを作成しました：' + copy.getUrl());
   plan.warnings.forEach(function (w) { Logger.log('警告：' + w); });
   return { number: meeting.number, url: copy.getUrl(), folderName: folder.getName(), folderUrl: folder.getUrl(), warnings: plan.warnings };
+}
+
+// 終了予定（閉会の行の開始時刻 + 所要時間）が 21:15 を過ぎるときは、テーブルトピックの回答者を減らす
+// （行を隠して 0 分にする）。時刻は B 列の数式で決まるので、記入後のシートで計算した値を読む
+function fitEndTime(sheet, plan) {
+  var endRow = plan.timing.endRow;
+  var end = function () {
+    SpreadsheetApp.flush();
+    return clockMinutes(sheet.getRange('B' + endRow).getDisplayValue()) + clockMinutes(sheet.getRange('C' + endRow).getDisplayValue());
+  };
+  var before = end();
+  var rows = tableTopicsToHide(before - END_LIMIT, plan.timing.tt);
+  rows.forEach(function (r) {
+    sheet.getRange('C' + r).setValue(0);
+    sheet.hideRows(r);
+  });
+  var after = rows.length ? end() : before;
+  if (rows.length) {
+    plan.warnings.push('終了予定が ' + formatClock(before) + ' になるため、テーブルトピックを ' + rows.length + ' 人分減らしました（行を非表示。終了予定 ' + formatClock(after) + '）');
+  }
+  if (after > END_LIMIT) {
+    plan.warnings.push('終了予定が ' + formatClock(after) + ' で、' + formatClock(END_LIMIT) + ' を過ぎています。時間を手直ししてください');
+  }
 }
 
 // ② PDF 出力：テンプレートのメニューから、出力フォルダで最後に更新したプログラム（手直し後）を PDF にする。
@@ -774,7 +951,7 @@ function onOpen() {
 function showLink(title, message, url) {
   var html = '<p style="font-family:sans-serif">' + message + '</p>' +
     '<p style="font-family:sans-serif"><a href="' + url + '" target="_blank">開く</a></p>';
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(440).setHeight(280), title);
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(440).setHeight(360), title);
 }
 
 function warningText(warnings) {
@@ -1001,6 +1178,8 @@ function parseUpcomingFromHtml(html) {
   return parseUpcoming(parseHtml(html));
 }
 
+var UNNUMBERED_ROLES = { '論評': '論評1', 'Evaluation': 'Evaluation1' };
+
 // membersHtml：mtgDetailGetMemberList.php の応答。出欠表はページ本体には無く、
 // ページ表示後に Ajax で読み込まれるため別に渡す
 function parseMeeting(html, membersHtml, mtgid) {
@@ -1015,13 +1194,14 @@ function parseMeeting(html, membersHtml, mtgid) {
     var cells = htmlCells(row);
     var role = cellText(cells[0]);
     var name = removeSan(selectedName(cells[1]));
-    var sp = /^(準備スピーチ|Prepared Speech)\s*(\d+)$/.exec(role);
+    // 1 本だけの回は番号の無い役割名（「準備スピーチ」「論評」）になるので、1 番として扱う
+    var sp = /^(準備スピーチ|Prepared Speech)\s*(\d*)$/.exec(role);
     if (!sp) {
-      roles[role] = name;
+      roles[UNNUMBERED_ROLES[role] || role] = name;
       return;
     }
     if (!name) return;
-    var speech = { slot: parseInt(sp[2], 10), speaker: name };
+    var speech = { slot: parseInt(sp[2], 10) || 1, speaker: name };
     var prj = parseProjectCell(cells[4]);
     Object.keys(prj).forEach(function (k) { speech[k] = prj[k]; });
     speech.title = cells.length > 5 ? cellText(cells[5]) : '';

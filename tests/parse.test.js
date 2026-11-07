@@ -179,3 +179,15 @@ test('HTML パーサー：<th>…</td> の誤記で外側の表を閉じない',
   assert.equal(gas.htmlRows(inner).length, 2);
   assert.equal(gas.htmlCells(gas.htmlRows(outer)[0]).length, 2);
 });
+
+test('番号の無い役割名（1 本だけの回の「準備スピーチ」「論評」）', () => {
+  const html = readFixture('384_page.html')
+    .replace(/>準備スピーチ1<\/a>/g, '>準備スピーチ</a>')
+    .replace(/>論評1<\/a>/g, '>論評</a>');
+  const m = gas.parseMeeting(html, '', 257);
+  assert.equal(m.speeches.ja.length, 1);
+  assert.equal(m.speeches.ja[0].slot, 1);
+  assert.equal(m.roles['論評1'], gas.parseMeeting(readFixture('384_page.html'), '', 257).roles['論評1']);
+  assert.ok(m.roles['論評1']);
+  assert.equal(m.roles['準備スピーチ'], undefined);
+});

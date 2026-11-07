@@ -2,7 +2,8 @@
 公開用の Markdown はぼかした画像（docs/manual/img/）を使う。Word 版はクラブ内で配るので、ぼかしていない画像を使える。
 
 実行：python tools/manual_to_docx.py [画像フォルダ] [出力先]
-  既定：画像 cache/manual/img（無ければ docs/manual/img）、出力 output/例会プログラム作成ツール_操作手順書.docx
+  既定：画像 cache/manual/img（無ければ docs/manual/img）、出力 output/例会プログラム作成ツール_操作手順書_v{版}.docx
+  （版は MANUAL.md の「版：v1.01」の行から取る）
 """
 import re
 import sys
@@ -18,7 +19,8 @@ MD = ROOT / "docs" / "manual" / "MANUAL.md"
 img_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "cache" / "manual" / "img"
 if not img_dir.exists():
     img_dir = ROOT / "docs" / "manual" / "img"
-out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "output" / "例会プログラム作成ツール_操作手順書.docx"
+version = re.search(r"^版：(v[\d.]+)", MD.read_text(encoding="utf-8"), re.M).group(1)
+out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "output" / f"例会プログラム作成ツール_操作手順書_{version}.docx"
 FONT = "Meiryo UI"
 
 

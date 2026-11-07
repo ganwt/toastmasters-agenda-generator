@@ -38,6 +38,26 @@ var SESSION_CELLS = {
   }
 };
 
+// イベント（入会式・ワークショップなど）の挿入位置。値はテンプレートの行番号で、この行の前に 1 行入れる。
+// 右側のゲスト・会員欄の見出しと □（〜25 行目）より下だけにする（上に入れると右欄がずれるため）
+var EVENT_POSITIONS = {
+  '前半スピーチの後': 29,
+  '前半テーブルトピックの後': 35,
+  '休憩の前': 41,
+  '休憩の後': 42,
+  '後半スピーチの後': 53,
+  '後半テーブルトピックの後': 58,
+  '表彰の前': 65,
+  '閉会の前': 67
+};
+var EVENT_FORMAT_ROW = 41; // 挿入した行の書式の複写元（「休憩」の行）
+
+// 終了予定の調整：閉会（Adjournment）の行の開始時刻 + 所要時間が 21:15 を過ぎたら、テーブルトピックの回答者を減らす
+var END_ROW = 69;
+var END_LIMIT = 21 * 60 + 15;
+var TT_ROWS = { first: [32, 33, 34], second: [55, 56, 57] }; // ①②③
+var TT_MINUTES = 3;
+
 var GUEST_ROWS = { first: 7, last: 17 };
 var MEMBER_ROWS = { first: 19, last: 70 };
 var TEMPLATE_CHECKBOX_ROWS = { guests: [7, 12], members: [19, 24] };
@@ -95,7 +115,8 @@ function isAttending(mark) {
   return mark === '○' || mark.indexOf('◎') === 0;
 }
 
-// settings: { zoom: 'Zoom の URL・ID・パスコード（複数行）', findProject: function(speech) → {desc_ja, desc_en} | null }
+// settings: { zoom: 'Zoom の URL・ID・パスコード（複数行）', findProject: function(speech) → {desc_ja, desc_en} | null,
+//             events: その回のイベント（parseEventSheet の結果） }
 function buildFillPlan(meeting, settings) {
   settings = settings || {};
   var warnings = [];
@@ -103,8 +124,16 @@ function buildFillPlan(meeting, settings) {
   var role = function (name) { return meeting.roles[name] || ''; };
   var order = meeting.format === 'JE' ? ['ja', 'en'] : ['en', 'ja'];
 
-  // スピーチ 3 本のセッションは行を挿入する。セル番地はテンプレートの行番号で書き、挿入後の番号に直して記録する
-  var inserts = planInserts(meeting, order);
+  var events = (settings.events || []).filter(function (e) {
+    if (EVENT_POSITIONS[e.position]) return true;
+    warnings.push('イベント「' + e.name + '」の挿入位置「' + e.position + '」が選択肢にないため、入れていません');
+    return false;
+  });
+  eventRoleWarnings(meeting.roles, events, warnings);
+
+  // スピーチ 3 本のセッションとイベントは行を挿入する。セル番地はテンプレートの行番号で書き、挿入後の番号に直して記録する
+  var inserts = planInserts(meeting, order, events);
+  var placed = placeInserts(inserts);
   var at = function (cell) {
     var m = /^([A-Z]+)(\d+)$/.exec(cell);
     return m[1] + shiftRow(inserts, parseInt(m[2], 10));
@@ -172,6 +201,18 @@ function buildFillPlan(meeting, settings) {
     set(c.ge, role(r.ge));
   });
 
+  // イベントの行（「休憩」の行の書式で挿入済み）。担当者が空欄なら例会ページの同じ名前の役割から取る
+  placed.forEach(function (ins) {
+    if (!ins.event) return;
+    var e = ins.event;
+    var row = ins.after + 1;
+    var person = e.person || eventRolePerson(meeting.roles, e.name);
+    setAt('E' + row, e.name);
+    minutesAt('C' + row, e.minutes);
+    setAt('J' + row, person);
+    if (!e.minutes) warnings.push('イベント「' + e.name + '」の所要時間が入っていません（0 分）');
+  });
+
   // 右側の欄：ゲスト
   var guests = (meeting.guests || []).filter(function (g) { return g.indexOf('キャンセル') === -1; });
   var guestCapacity = GUEST_ROWS.last - GUEST_ROWS.first + 1;
@@ -195,11 +236,17 @@ function buildFillPlan(meeting, settings) {
   var p = parseDateParts(meeting.date);
   return {
     sheet: meeting.format,
-    inserts: inserts.map(function (ins) {
-      var after = shiftRow(inserts, ins.after);
-      return { after: after, count: ins.count, from: shiftRow(inserts, ins.from), label: 'F' + (after + 1) };
+    inserts: placed.map(function (ins) {
+      var r = { after: ins.after, count: ins.count, from: ins.from };
+      if (!ins.event) r.label = 'F' + (ins.after + 1);
+      return r;
     }),
     cells: cells,
+    // 終了予定の調整用（挿入後の行番号）。シートで時刻を計算してから tableTopicsToHide で決める
+    timing: {
+      endRow: shiftRow(inserts, END_ROW),
+      tt: [TT_ROWS.first, TT_ROWS.second].map(function (rows) { return rows.map(function (r) { return shiftRow(inserts, r); }); })
+    },
     objectives: buildObjectives(objectives, settings, warnings),
     fileName: '新宿BTMC第' + meeting.number + '回例会プログラム' + p.y + pad2(p.m) + pad2(p.d),
     warnings: warnings
@@ -207,8 +254,9 @@ function buildFillPlan(meeting, settings) {
 }
 
 // 3 本目のスピーチがあるセッションごとに、スピーチ 2 のブロック（4 行）と論評 2 の行（1 行）を複写して挿入する。
-// after / from はテンプレートの行番号。上から順に並べる
-function planInserts(meeting, order) {
+// イベントは 1 行ずつ、指定位置の行の前に挿入する。
+// after / from はテンプレートの行番号。上から順に並べ、同じ位置ではスピーチのブロックを先、イベントはシートの順
+function planInserts(meeting, order, events) {
   var inserts = [];
   ['first', 'second'].forEach(function (pos, i) {
     var speeches = meeting.speeches[order[i]] || [];
@@ -218,7 +266,25 @@ function planInserts(meeting, order) {
     inserts.push({ after: c.speech2Rows[1], count: 4, from: c.speech2Rows[0] });
     inserts.push({ after: evalRow, count: 1, from: evalRow });
   });
-  return inserts.sort(function (a, b) { return a.after - b.after; });
+  (events || []).forEach(function (e) {
+    inserts.push({ after: EVENT_POSITIONS[e.position] - 1, count: 1, from: EVENT_FORMAT_ROW, event: e });
+  });
+  return inserts.sort(function (a, b) { return (a.after - b.after) || ((a.event ? 1 : 0) - (b.event ? 1 : 0)); });
+}
+
+// 上から順に挿入したときの、実際の挿入位置（after）と複写元（from）の行番号。
+// 同じ位置に複数あるときは、先に挿入した行の下に入れる
+function placeInserts(inserts) {
+  return inserts.map(function (ins, i) {
+    var done = inserts.slice(0, i);
+    var after = ins.after;
+    var from = ins.from;
+    done.forEach(function (d) {
+      after += d.count;
+      if (d.after < ins.from) from += d.count;
+    });
+    return { after: after, count: ins.count, from: from, event: ins.event };
+  });
 }
 
 // テンプレートの行番号 → 挿入後の行番号
@@ -321,4 +387,82 @@ function selectLatestProgram(files) {
   var programs = (files || []).filter(function (f) { return PROGRAM_FILE_NAME.test(f.name); });
   programs.sort(function (a, b) { return b.updated - a.updated; });
   return programs[0] || null;
+}
+
+// 「イベント」シート（例会回 / イベント名 / 挿入位置 / 所要時間（分） / 担当者）から、その回の行を読む。
+// values は getDataRange().getValues() の形。列は 1 行目の見出しの文字で探す
+function parseEventSheet(values, number) {
+  if (!values || !values.length) return [];
+  var header = values[0].map(function (h) { return String(h); });
+  var col = function (word) {
+    for (var i = 0; i < header.length; i++) if (header[i].indexOf(word) !== -1) return i;
+    return -1;
+  };
+  var c = { number: col('回'), name: col('イベント'), position: col('位置'), minutes: col('時間'), person: col('担当') };
+  var get = function (r, k) { return c[k] < 0 || r[c[k]] === undefined || r[c[k]] === null ? '' : String(r[c[k]]).trim(); };
+  return values.slice(1).filter(function (r) {
+    return get(r, 'name') && parseInt(get(r, 'number').replace(/[^\d]/g, ''), 10) === number;
+  }).map(function (r) {
+    return { name: get(r, 'name'), position: get(r, 'position'), minutes: parseInt(get(r, 'minutes'), 10) || 0, person: get(r, 'person') };
+  });
+}
+
+// 例会ページの役割のうち、決まった役割（TMOE・スピーチ・論評など）以外で担当者がいるもの（入会式担当、ワークショップなど）
+function extraRoles(roles) {
+  var known = { 'スピーチ': 1, 'Speach': 1, '今夜の言葉（日英）': 1 };
+  HELPER_ROLES.forEach(function (r) { known[r] = 1; });
+  ['ja', 'en'].forEach(function (lang) {
+    var r = SESSION_ROLES[lang];
+    [r.tmoe, r.ttm, r.ge].concat(r.evals).forEach(function (n) { known[n] = 1; });
+  });
+  return Object.keys(roles || {}).filter(function (k) {
+    return roles[k] && !known[k] && !/^(テーブルトピックス回答者|Table Topics Speaker)\d*$/.test(k);
+  });
+}
+
+// イベント名と役割名は「入会式」と「入会式担当」のように完全には一致しないので、どちらかを含めば同じとみなす
+function eventMatchesRole(eventName, role) {
+  var norm = function (s) { return s.replace(/\s+/g, '').toLowerCase(); };
+  var e = norm(eventName);
+  var r = norm(role);
+  return !!e && !!r && (r.indexOf(e) !== -1 || e.indexOf(r) !== -1);
+}
+
+function eventRolePerson(roles, eventName) {
+  var hit = extraRoles(roles).filter(function (k) { return eventMatchesRole(eventName, k); })[0];
+  return hit ? roles[hit] : '';
+}
+
+// 例会ページにイベントらしい役割があるのに「イベント」シートに無いときは知らせる（位置と時間は人が決める）
+function eventRoleWarnings(roles, events, warnings) {
+  extraRoles(roles).forEach(function (k) {
+    if (events.some(function (e) { return eventMatchesRole(e.name, k); })) return;
+    warnings.push('例会ページに「' + k + '」（担当：' + roles[k] + '）がありますが、「イベント」シートにありません。必要なら追加して作り直してください');
+  });
+}
+
+// 終了予定が END_LIMIT を overMinutes 分過ぎるとき、隠すテーブルトピックの行。
+// 後半・前半の順に交互に、③ → ② の順で減らす。各セッション 1 人は残す
+function tableTopicsToHide(overMinutes, tt) {
+  var left = [tt[0].slice(), tt[1].slice()];
+  var rows = [];
+  var s = 1;
+  while (overMinutes > 0 && (left[0].length > 1 || left[1].length > 1)) {
+    if (left[s].length > 1) {
+      rows.push(left[s].pop());
+      overMinutes -= TT_MINUTES;
+    }
+    s = 1 - s;
+  }
+  return rows;
+}
+
+// '21:27' → 1287（分）。空欄は 0
+function clockMinutes(text) {
+  var m = /(\d+):(\d{2})/.exec(text || '');
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0;
+}
+
+function formatClock(minutes) {
+  return Math.floor(minutes / 60) + ':' + pad2(minutes % 60);
 }

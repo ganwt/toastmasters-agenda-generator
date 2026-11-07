@@ -168,6 +168,8 @@ function parseUpcomingFromHtml(html) {
   return parseUpcoming(parseHtml(html));
 }
 
+var UNNUMBERED_ROLES = { '論評': '論評1', 'Evaluation': 'Evaluation1' };
+
 // membersHtml：mtgDetailGetMemberList.php の応答。出欠表はページ本体には無く、
 // ページ表示後に Ajax で読み込まれるため別に渡す
 function parseMeeting(html, membersHtml, mtgid) {
@@ -182,13 +184,14 @@ function parseMeeting(html, membersHtml, mtgid) {
     var cells = htmlCells(row);
     var role = cellText(cells[0]);
     var name = removeSan(selectedName(cells[1]));
-    var sp = /^(準備スピーチ|Prepared Speech)\s*(\d+)$/.exec(role);
+    // 1 本だけの回は番号の無い役割名（「準備スピーチ」「論評」）になるので、1 番として扱う
+    var sp = /^(準備スピーチ|Prepared Speech)\s*(\d*)$/.exec(role);
     if (!sp) {
-      roles[role] = name;
+      roles[UNNUMBERED_ROLES[role] || role] = name;
       return;
     }
     if (!name) return;
-    var speech = { slot: parseInt(sp[2], 10), speaker: name };
+    var speech = { slot: parseInt(sp[2], 10) || 1, speaker: name };
     var prj = parseProjectCell(cells[4]);
     Object.keys(prj).forEach(function (k) { speech[k] = prj[k]; });
     speech.title = cells.length > 5 ? cellText(cells[5]) : '';

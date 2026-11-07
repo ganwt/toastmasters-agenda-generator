@@ -5,6 +5,7 @@ var SITE_BASE = 'https://tmcsupport.coresv.com/shinjukubilingualpha/';
 var SETTINGS_SHEET = '設定';
 var PROJECTS_SHEET = 'プロジェクト説明'; // tools/build_projects.py の CSV を取り込んだシート（クラブ内のみ）
 var OBJECTIVES_SHEET = 'プロジェクト目標';
+var EVENTS_SHEET = 'イベント'; // 入会式・ワークショップなど、その回だけの項目（例会回 / イベント名 / 挿入位置 / 所要時間 / 担当者）
 var PROGRAM_SHEETS = ['JE', 'EJ', OBJECTIVES_SHEET];
 
 function fetchText(url, options) {
@@ -57,12 +58,15 @@ var AGENDA_LAST_COLUMN = 13; // M 列まで（N・O 列は右側のゲスト・�
 function applyInserts(sheet, inserts) {
   (inserts || []).forEach(function (ins) {
     sheet.insertRowsAfter(ins.after, ins.count);
-    sheet.getRange(ins.from, 1, ins.count, AGENDA_LAST_COLUMN)
+    // 複写元が挿入位置より下にある場合（イベントを「休憩」より上に入れるとき）は、挿入した分だけ下にずれている
+    var from = ins.from > ins.after ? ins.from + ins.count : ins.from;
+    sheet.getRange(from, 1, ins.count, AGENDA_LAST_COLUMN)
       .copyTo(sheet.getRange(ins.after + 1, 1, ins.count, AGENDA_LAST_COLUMN));
-    for (var k = 0; k < ins.count; k++) sheet.setRowHeight(ins.after + 1 + k, sheet.getRowHeight(ins.from + k));
+    for (var k = 0; k < ins.count; k++) sheet.setRowHeight(ins.after + 1 + k, sheet.getRowHeight(from + k));
     for (var r = ins.after + 1; r <= ins.after + ins.count + 1; r++) {
       sheet.getRange(r, 2).setFormula('=B' + (r - 1) + '+C' + (r - 1));
     }
+    if (!ins.label) return; // イベントの行は見出しを記入内容で書く
     var label = sheet.getRange(ins.label);
     label.setValue(String(label.getValue()).replace(/2(\s*)$/, '3$1'));
   });
@@ -143,7 +147,13 @@ function createProgramFromMeeting(meeting, options) {
   var folder = outputFolder(ss, settings);
   var projectSheet = ss.getSheetByName(PROJECTS_SHEET);
   var projects = projectSheet ? parseProjectSheet(projectSheet.getDataRange().getValues()) : [];
-  var plan = buildFillPlan(meeting, { zoom: settings.zoom, findProject: function (s) { return findProjectInfo(s, projects); } });
+  var eventSheet = ss.getSheetByName(EVENTS_SHEET);
+  var events = eventSheet ? parseEventSheet(eventSheet.getDataRange().getValues(), meeting.number) : [];
+  var plan = buildFillPlan(meeting, {
+    zoom: settings.zoom,
+    findProject: function (s) { return findProjectInfo(s, projects); },
+    events: events
+  });
   if (!projects.length) plan.warnings.unshift('「' + PROJECTS_SHEET + '」シートにデータが無いため、プロジェクトの説明は入りません');
 
   if (options && options.skipIfExists && folder.getFilesByName(plan.fileName).hasNext()) {
@@ -153,11 +163,34 @@ function createProgramFromMeeting(meeting, options) {
   var copyFile = DriveApp.getFileById(ss.getId()).makeCopy(plan.fileName, folder);
   var copy = SpreadsheetApp.openById(copyFile.getId());
   applyPlan(copy, plan);
-  SpreadsheetApp.flush();
+  fitEndTime(copy.getSheetByName(plan.sheet), plan);
 
   Logger.log('第' + meeting.number + '回のプログラムを作成しました：' + copy.getUrl());
   plan.warnings.forEach(function (w) { Logger.log('警告：' + w); });
   return { number: meeting.number, url: copy.getUrl(), folderName: folder.getName(), folderUrl: folder.getUrl(), warnings: plan.warnings };
+}
+
+// 終了予定（閉会の行の開始時刻 + 所要時間）が 21:15 を過ぎるときは、テーブルトピックの回答者を減らす
+// （行を隠して 0 分にする）。時刻は B 列の数式で決まるので、記入後のシートで計算した値を読む
+function fitEndTime(sheet, plan) {
+  var endRow = plan.timing.endRow;
+  var end = function () {
+    SpreadsheetApp.flush();
+    return clockMinutes(sheet.getRange('B' + endRow).getDisplayValue()) + clockMinutes(sheet.getRange('C' + endRow).getDisplayValue());
+  };
+  var before = end();
+  var rows = tableTopicsToHide(before - END_LIMIT, plan.timing.tt);
+  rows.forEach(function (r) {
+    sheet.getRange('C' + r).setValue(0);
+    sheet.hideRows(r);
+  });
+  var after = rows.length ? end() : before;
+  if (rows.length) {
+    plan.warnings.push('終了予定が ' + formatClock(before) + ' になるため、テーブルトピックを ' + rows.length + ' 人分減らしました（行を非表示。終了予定 ' + formatClock(after) + '）');
+  }
+  if (after > END_LIMIT) {
+    plan.warnings.push('終了予定が ' + formatClock(after) + ' で、' + formatClock(END_LIMIT) + ' を過ぎています。時間を手直ししてください');
+  }
 }
 
 // ② PDF 出力：テンプレートのメニューから、出力フォルダで最後に更新したプログラム（手直し後）を PDF にする。
@@ -230,7 +263,7 @@ function onOpen() {
 function showLink(title, message, url) {
   var html = '<p style="font-family:sans-serif">' + message + '</p>' +
     '<p style="font-family:sans-serif"><a href="' + url + '" target="_blank">開く</a></p>';
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(440).setHeight(280), title);
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(440).setHeight(360), title);
 }
 
 function warningText(warnings) {
