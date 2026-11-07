@@ -28,6 +28,14 @@ function fakeSheet(name, initial) {
             }
           },
           setFormula: (f) => { values[col(b) + a] = f; },
+          moveTo(dest) {
+            for (let c = 0; c < this.cols; c++) {
+              const from = col(this.col + c) + this.row;
+              const v = values[from];
+              delete values[from];
+              if (v !== undefined) values[col(dest.col + c) + dest.row] = v;
+            }
+          },
           setFontFamily: (f) => { sheet.font = f; }
         };
       }
@@ -146,4 +154,17 @@ test('applyInserts：イベントを「休憩」より上に入れると、複�
   assert.equal(v.E42, '休憩');
   assert.equal(v.B29, '=B28+C28');
   assert.equal(v.B30, '=B29+C29');
+});
+
+test('applyInserts：右欄の見出しと □ より上に入れたときは、右欄（N・O 列）を元の行に戻す', () => {
+  const sh = fakeSheet('JE', { E9: '会長挨拶', E10: 'TMOE', O7: 'ゲスト欄', N12: '□', O18: '出席予定会員', N24: '□', N25: '下' });
+  gas.applyInserts(sh, [{ after: 9, count: 1, from: 41 }]);
+  const v = sh.values;
+  assert.equal(v.E11, 'TMOE'); // 議事欄は 1 行下
+  assert.equal(v.O7, 'ゲスト欄');
+  assert.equal(v.N12, '□');
+  assert.equal(v.O18, '出席予定会員');
+  assert.equal(v.N24, '□');
+  assert.equal(v.N25, undefined); // 24 行目より下の右欄は戻さない（会員欄は後から上から詰めて書く）
+  assert.equal(v.N26, '下');
 });

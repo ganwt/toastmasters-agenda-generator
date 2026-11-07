@@ -1,5 +1,11 @@
 // toastmasters-agenda-generator（https://github.com/ganwt/toastmasters-agenda-generator）
+// 版：v1.02（2026-11-08）
 // このファイルは npm run build で src/ から生成したものです。直接編集しないでください。
+//
+// 更新履歴
+//   v1.00  2026-11-02  初版
+//   v1.01  2026-11-07  イベントの挿入（「イベント」シート）、終了予定が 21:15 を過ぎるときのテーブルトピック自動調整、番号の無い役割名（準備スピーチ・論評）の読み取りを修正、作成後の画面を大きく
+//   v1.02  2026-11-08  イベントの挿入位置に「会長挨拶・ゲスト紹介の後」を追加、終了予定の調整をテーブルトピック → 休憩 → 総合論評 → テーブルトピックの順に変更
 
 // ===== dev.js =====
 // 開発用の関数（メニューには出さない。Apps Script のエディタから実行する）
@@ -68,8 +74,9 @@ var SESSION_CELLS = {
 };
 
 // イベント（入会式・ワークショップなど）の挿入位置。値はテンプレートの行番号で、この行の前に 1 行入れる。
-// 右側のゲスト・会員欄の見出しと □（〜25 行目）より下だけにする（上に入れると右欄がずれるため）
+// 右側のゲスト・会員欄より上に入れるときは、挿入後に右欄（N・O 列）を元の行に戻す（main.js の applyInserts）
 var EVENT_POSITIONS = {
+  '会長挨拶・ゲスト紹介の後': 10,
   '前半スピーチの後': 29,
   '前半テーブルトピックの後': 35,
   '休憩の前': 41,
@@ -81,11 +88,16 @@ var EVENT_POSITIONS = {
 };
 var EVENT_FORMAT_ROW = 41; // 挿入した行の書式の複写元（「休憩」の行）
 
-// 終了予定の調整：閉会（Adjournment）の行の開始時刻 + 所要時間が 21:15 を過ぎたら、テーブルトピックの回答者を減らす
+// 終了予定の調整：閉会（Adjournment）の行の開始時刻 + 所要時間が 21:15 を過ぎたら、
+// テーブルトピック・休憩・総合論評を減らす（順番は planTimeFit）
 var END_ROW = 69;
 var END_LIMIT = 21 * 60 + 15;
 var TT_ROWS = { first: [32, 33, 34], second: [55, 56, 57] }; // ①②③
 var TT_MINUTES = 3;
+var BREAK_ROW = 41;
+var BREAK_MINUTES = { normal: 10, min: 5 };
+var GE_ROWS = [38, 62]; // 前半・後半の総合論評
+var GE_MINUTES = { normal: 7, min: 5 };
 
 var GUEST_ROWS = { first: 7, last: 17 };
 var MEMBER_ROWS = { first: 19, last: 70 };
@@ -271,10 +283,12 @@ function buildFillPlan(meeting, settings) {
       return r;
     }),
     cells: cells,
-    // 終了予定の調整用（挿入後の行番号）。シートで時刻を計算してから tableTopicsToHide で決める
+    // 終了予定の調整用（挿入後の行番号）。シートで時刻を計算してから planTimeFit で決める
     timing: {
       endRow: shiftRow(inserts, END_ROW),
-      tt: [TT_ROWS.first, TT_ROWS.second].map(function (rows) { return rows.map(function (r) { return shiftRow(inserts, r); }); })
+      tt: [TT_ROWS.first, TT_ROWS.second].map(function (rows) { return rows.map(function (r) { return shiftRow(inserts, r); }); }),
+      breakRow: shiftRow(inserts, BREAK_ROW),
+      geRows: GE_ROWS.map(function (r) { return shiftRow(inserts, r); })
     },
     objectives: buildObjectives(objectives, settings, warnings),
     fileName: '新宿BTMC第' + meeting.number + '回例会プログラム' + p.y + pad2(p.m) + pad2(p.d),
@@ -470,20 +484,57 @@ function eventRoleWarnings(roles, events, warnings) {
   });
 }
 
-// 終了予定が END_LIMIT を overMinutes 分過ぎるとき、隠すテーブルトピックの行。
-// 後半・前半の順に交互に、③ → ② の順で減らす。各セッション 1 人は残す
-function tableTopicsToHide(overMinutes, tt) {
-  var left = [tt[0].slice(), tt[1].slice()];
-  var rows = [];
-  var s = 1;
-  while (overMinutes > 0 && (left[0].length > 1 || left[1].length > 1)) {
-    if (left[s].length > 1) {
-      rows.push(left[s].pop());
-      overMinutes -= TT_MINUTES;
-    }
-    s = 1 - s;
+// 終了予定が END_LIMIT を overMinutes 分過ぎるときの調整。過ぎなくなったところで止める。
+// 1. テーブルトピック ③ を後半・前半の順に減らす（各セッション 2 人は残す）
+// 2. 休憩を 1 分単位で短くする（10 分 → 最短 5 分）
+// 3. 総合論評を前半・後半の順に 1 分ずつ短くする（7 分 → 最短 5 分）
+// 4. テーブルトピック ② を後半・前半の順に減らす（各セッション 1 人は残す）
+// 戻り値：hideRows = 隠すテーブルトピックの行、minutes = 時間を変える行 [{ row, minutes }]、over = 残りの超過分
+function planTimeFit(overMinutes, timing) {
+  var over = overMinutes;
+  var r = { hideRows: [], minutes: [], tt: 0, breakMinutes: BREAK_MINUTES.normal, geMinutes: [GE_MINUTES.normal, GE_MINUTES.normal] };
+  var dropTableTopics = function (index) {
+    [1, 0].forEach(function (s) {
+      if (over <= 0) return;
+      r.hideRows.push(timing.tt[s][index]);
+      r.tt++;
+      over -= TT_MINUTES;
+    });
+  };
+  dropTableTopics(2);
+  if (over > 0) {
+    var cut = Math.min(over, BREAK_MINUTES.normal - BREAK_MINUTES.min);
+    r.breakMinutes -= cut;
+    over -= cut;
+    r.minutes.push({ row: timing.breakRow, minutes: r.breakMinutes });
   }
-  return rows;
+  while (over > 0 && (r.geMinutes[0] > GE_MINUTES.min || r.geMinutes[1] > GE_MINUTES.min)) {
+    [0, 1].forEach(function (s) {
+      if (over > 0 && r.geMinutes[s] > GE_MINUTES.min) {
+        r.geMinutes[s]--;
+        over--;
+      }
+    });
+  }
+  [0, 1].forEach(function (s) {
+    if (r.geMinutes[s] !== GE_MINUTES.normal) r.minutes.push({ row: timing.geRows[s], minutes: r.geMinutes[s] });
+  });
+  dropTableTopics(1);
+  r.over = over;
+  return r;
+}
+
+// planTimeFit の結果を「注意」に出す文にする
+function timeFitMessage(before, after, fit) {
+  var parts = [];
+  if (fit.tt) parts.push('テーブルトピック ' + fit.tt + ' 人減（行を非表示）');
+  if (fit.breakMinutes !== BREAK_MINUTES.normal) parts.push('休憩 ' + fit.breakMinutes + ' 分');
+  var ge = [];
+  ['前半', '後半'].forEach(function (n, s) {
+    if (fit.geMinutes[s] !== GE_MINUTES.normal) ge.push(n + ' ' + fit.geMinutes[s] + ' 分');
+  });
+  if (ge.length) parts.push('総合論評 ' + ge.join('・'));
+  return '終了予定が ' + formatClock(before) + ' になるため調整しました：' + parts.join('、') + '（終了予定 ' + formatClock(after) + '）';
 }
 
 // '21:27' → 1287（分）。空欄は 0
@@ -740,12 +791,19 @@ function outputFolder(ss, settings) {
 }
 
 var AGENDA_LAST_COLUMN = 13; // M 列まで（N・O 列は右側のゲスト・会員欄）
+var RIGHT_FIRST_COLUMN = 14; // N 列
 
 // スピーチ 3 本の回：行を挿入し、複写元（スピーチ 2 のブロック / 論評 2 の行）の議事欄を複写する。
 // 右側の欄は複写しない。B 列は挿入した行とその次の行の数式をつなぎ直す（開始時刻の連鎖を切らないため）
 function applyInserts(sheet, inserts) {
   (inserts || []).forEach(function (ins) {
     sheet.insertRowsAfter(ins.after, ins.count);
+    // 右側のゲスト・会員欄の見出しと □（〜24 行目）より上に入れたときは、ずれた右欄（N・O 列）を元の行へ戻す。
+    // 上の行から 1 行ずつ移すので、移動元と移動先が重ならない
+    var rightLast = TEMPLATE_CHECKBOX_ROWS.members[1];
+    for (var row = ins.after + 1; row <= rightLast; row++) {
+      sheet.getRange(row + ins.count, RIGHT_FIRST_COLUMN, 1, 2).moveTo(sheet.getRange(row, RIGHT_FIRST_COLUMN));
+    }
     // 複写元が挿入位置より下にある場合（イベントを「休憩」より上に入れるとき）は、挿入した分だけ下にずれている
     var from = ins.from > ins.after ? ins.from + ins.count : ins.from;
     sheet.getRange(from, 1, ins.count, AGENDA_LAST_COLUMN)
@@ -858,8 +916,8 @@ function createProgramFromMeeting(meeting, options) {
   return { number: meeting.number, url: copy.getUrl(), folderName: folder.getName(), folderUrl: folder.getUrl(), warnings: plan.warnings };
 }
 
-// 終了予定（閉会の行の開始時刻 + 所要時間）が 21:15 を過ぎるときは、テーブルトピックの回答者を減らす
-// （行を隠して 0 分にする）。時刻は B 列の数式で決まるので、記入後のシートで計算した値を読む
+// 終了予定（閉会の行の開始時刻 + 所要時間）が 21:15 を過ぎるときは、テーブルトピック・休憩・総合論評を減らす
+// （planTimeFit。テーブルトピックは行を隠して 0 分にする）。時刻は B 列の数式で決まるので、記入後のシートで計算した値を読む
 function fitEndTime(sheet, plan) {
   var endRow = plan.timing.endRow;
   var end = function () {
@@ -867,15 +925,15 @@ function fitEndTime(sheet, plan) {
     return clockMinutes(sheet.getRange('B' + endRow).getDisplayValue()) + clockMinutes(sheet.getRange('C' + endRow).getDisplayValue());
   };
   var before = end();
-  var rows = tableTopicsToHide(before - END_LIMIT, plan.timing.tt);
-  rows.forEach(function (r) {
+  if (before <= END_LIMIT) return;
+  var fit = planTimeFit(before - END_LIMIT, plan.timing);
+  fit.hideRows.forEach(function (r) {
     sheet.getRange('C' + r).setValue(0);
     sheet.hideRows(r);
   });
-  var after = rows.length ? end() : before;
-  if (rows.length) {
-    plan.warnings.push('終了予定が ' + formatClock(before) + ' になるため、テーブルトピックを ' + rows.length + ' 人分減らしました（行を非表示。終了予定 ' + formatClock(after) + '）');
-  }
+  fit.minutes.forEach(function (m) { sheet.getRange('C' + m.row).setValue(m.minutes / (24 * 60)); });
+  var after = end();
+  plan.warnings.push(timeFitMessage(before, after, fit));
   if (after > END_LIMIT) {
     plan.warnings.push('終了予定が ' + formatClock(after) + ' で、' + formatClock(END_LIMIT) + ' を過ぎています。時間を手直ししてください');
   }

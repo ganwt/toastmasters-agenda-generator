@@ -52,12 +52,19 @@ function outputFolder(ss, settings) {
 }
 
 var AGENDA_LAST_COLUMN = 13; // M 列まで（N・O 列は右側のゲスト・会員欄）
+var RIGHT_FIRST_COLUMN = 14; // N 列
 
 // スピーチ 3 本の回：行を挿入し、複写元（スピーチ 2 のブロック / 論評 2 の行）の議事欄を複写する。
 // 右側の欄は複写しない。B 列は挿入した行とその次の行の数式をつなぎ直す（開始時刻の連鎖を切らないため）
 function applyInserts(sheet, inserts) {
   (inserts || []).forEach(function (ins) {
     sheet.insertRowsAfter(ins.after, ins.count);
+    // 右側のゲスト・会員欄の見出しと □（〜24 行目）より上に入れたときは、ずれた右欄（N・O 列）を元の行へ戻す。
+    // 上の行から 1 行ずつ移すので、移動元と移動先が重ならない
+    var rightLast = TEMPLATE_CHECKBOX_ROWS.members[1];
+    for (var row = ins.after + 1; row <= rightLast; row++) {
+      sheet.getRange(row + ins.count, RIGHT_FIRST_COLUMN, 1, 2).moveTo(sheet.getRange(row, RIGHT_FIRST_COLUMN));
+    }
     // 複写元が挿入位置より下にある場合（イベントを「休憩」より上に入れるとき）は、挿入した分だけ下にずれている
     var from = ins.from > ins.after ? ins.from + ins.count : ins.from;
     sheet.getRange(from, 1, ins.count, AGENDA_LAST_COLUMN)
@@ -170,8 +177,8 @@ function createProgramFromMeeting(meeting, options) {
   return { number: meeting.number, url: copy.getUrl(), folderName: folder.getName(), folderUrl: folder.getUrl(), warnings: plan.warnings };
 }
 
-// 終了予定（閉会の行の開始時刻 + 所要時間）が 21:15 を過ぎるときは、テーブルトピックの回答者を減らす
-// （行を隠して 0 分にする）。時刻は B 列の数式で決まるので、記入後のシートで計算した値を読む
+// 終了予定（閉会の行の開始時刻 + 所要時間）が 21:15 を過ぎるときは、テーブルトピック・休憩・総合論評を減らす
+// （planTimeFit。テーブルトピックは行を隠して 0 分にする）。時刻は B 列の数式で決まるので、記入後のシートで計算した値を読む
 function fitEndTime(sheet, plan) {
   var endRow = plan.timing.endRow;
   var end = function () {
@@ -179,15 +186,15 @@ function fitEndTime(sheet, plan) {
     return clockMinutes(sheet.getRange('B' + endRow).getDisplayValue()) + clockMinutes(sheet.getRange('C' + endRow).getDisplayValue());
   };
   var before = end();
-  var rows = tableTopicsToHide(before - END_LIMIT, plan.timing.tt);
-  rows.forEach(function (r) {
+  if (before <= END_LIMIT) return;
+  var fit = planTimeFit(before - END_LIMIT, plan.timing);
+  fit.hideRows.forEach(function (r) {
     sheet.getRange('C' + r).setValue(0);
     sheet.hideRows(r);
   });
-  var after = rows.length ? end() : before;
-  if (rows.length) {
-    plan.warnings.push('終了予定が ' + formatClock(before) + ' になるため、テーブルトピックを ' + rows.length + ' 人分減らしました（行を非表示。終了予定 ' + formatClock(after) + '）');
-  }
+  fit.minutes.forEach(function (m) { sheet.getRange('C' + m.row).setValue(m.minutes / (24 * 60)); });
+  var after = end();
+  plan.warnings.push(timeFitMessage(before, after, fit));
   if (after > END_LIMIT) {
     plan.warnings.push('終了予定が ' + formatClock(after) + ' で、' + formatClock(END_LIMIT) + ' を過ぎています。時間を手直ししてください');
   }

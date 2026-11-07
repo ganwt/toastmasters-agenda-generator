@@ -14,7 +14,7 @@ Today, someone opens the Club Support System, copies the role assignments into a
   - Adds rows automatically when a session has three prepared speeches
   - Fills the "Project Objectives" page with the Pathways project descriptions
   - Inserts events (induction ceremony, workshop, …) at the position and length written in the "イベント" (Events) sheet
-  - Reduces the number of Table Topics speakers when the meeting would end after 21:15
+  - Shortens Table Topics, the break and General Evaluation when the meeting would end after 21:15
 - First creates an editable spreadsheet; after checking and fixing it, "② Export the latest program as PDF" turns it into a PDF (handy when someone cancels)
 - Can optionally create the program automatically on meeting days (off by default)
 
@@ -37,7 +37,7 @@ A step-by-step guide with screenshots (Japanese) is in [docs/manual/MANUAL.md](d
 
 - If something changes (e.g. a cancellation), edit the spreadsheet and run ② again (it exports the most recently updated program), or start over from ① (this creates another file with the same name; delete the old one).
 - If a warning says a project description was not found, only the heading is filled in. Paste the description into the spreadsheet if needed.
-- If the meeting would end after 21:15, Table Topics speakers are removed alternately from the second and first sessions (at least one is kept per session), and a warning is shown. The rows are only hidden; to restore one, unhide the row and set column C (duration) back to 0:03.
+- If the meeting would end after 21:15, it is shortened automatically in this order, and a warning is shown: Table Topics (down to two per session) → break (down to 5 min) → General Evaluation (down to 5 min) → Table Topics (down to one per session). Removed Table Topics rows are only hidden; to restore one, unhide the row and set column C (duration) back to 0:03.
 - To create a program for a meeting other than the next one, use "① 回を指定して作成（mtgid）" and enter the number after `mtgid=` in the meeting detail page URL.
 
 ### Meetings with events (induction ceremony, workshop, …)
@@ -48,7 +48,7 @@ Before running ①, add one row per event to the template's **イベント** (Ev
 |---|---|---|---|---|
 | 386 | 入会式 | 休憩の前 | 15 | (blank = taken from the meeting page) |
 
-- Choose the position from the dropdown (after the first session's speeches / after the first Table Topics / before the break / after the break / after the second session's speeches / after the second Table Topics / before the awards / before the closing).
+- Choose the position from the dropdown (after the president's greeting and guest introductions / after the first session's speeches / after the first Table Topics / before the break / after the break / after the second session's speeches / after the second Table Topics / before the awards / before the closing).
 - If the person is blank, it is taken from the matching role on the meeting page (e.g. "入会式担当").
 - If the meeting page has an event role that is not in the sheet, a warning is shown. Add it to the sheet and run ① again.
 

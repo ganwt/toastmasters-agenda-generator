@@ -359,7 +359,7 @@ test('イベントの挿入（384・休憩の前）：担当者はページの�
   assert.equal(c.J41, '山田 太郎');
   // 後半の記入先は 1 行下にずれる
   assert.equal(c.J46, m.speeches.en[0].speaker);
-  assert.deepEqual(JSON.parse(JSON.stringify(plan.timing)), { endRow: 70, tt: [[32, 33, 34], [56, 57, 58]] });
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.timing)), { endRow: 70, tt: [[32, 33, 34], [56, 57, 58]], breakRow: 42, geRows: [38, 63] });
   assert.ok(!plan.warnings.some((w) => w.includes('入会式担当')));
 });
 
@@ -398,14 +398,42 @@ test('イベントとスピーチ 3 本が同じ位置：スピーチのブロ�
   assert.equal(c.F55, gas.formatSpeechTitle(base, 'en')); // 3 本目のタイトル（F50 は C の分ずれて F51、その 4 行下）
 });
 
-test('tableTopicsToHide：後半・前半の順に交互に、③ から。各セッション 1 人は残す', () => {
-  const tt = [[32, 33, 34], [55, 56, 57]];
-  assert.deepEqual([...gas.tableTopicsToHide(0, tt)], []);
-  assert.deepEqual([...gas.tableTopicsToHide(-5, tt)], []);
-  assert.deepEqual([...gas.tableTopicsToHide(1, tt)], [57]);
-  assert.deepEqual([...gas.tableTopicsToHide(4, tt)], [57, 34]);
-  assert.deepEqual([...gas.tableTopicsToHide(12, tt)], [57, 34, 56, 33]);
-  assert.deepEqual([...gas.tableTopicsToHide(30, tt)], [57, 34, 56, 33]);
+test('planTimeFit：テーブルトピック③ → 休憩 → 総合論評 → テーブルトピック②の順に、超過がなくなるまで', () => {
+  const timing = { tt: [[32, 33, 34], [55, 56, 57]], breakRow: 41, geRows: [38, 62] };
+  const fit = (over) => JSON.parse(JSON.stringify(gas.planTimeFit(over, timing)));
+  assert.deepEqual(fit(0).hideRows, []);
+  assert.deepEqual(fit(0).minutes, []);
+  assert.deepEqual(fit(1).hideRows, [57]);
+  assert.deepEqual(fit(1).minutes, []);
+  // 通常の回（日英スピーチ 2 本ずつ、21:27 終了 = 12 分超過）：テーブルトピック各 2 人、休憩 5 分、前半の総合論評 6 分
+  const normal = fit(12);
+  assert.deepEqual(normal.hideRows, [57, 34]);
+  assert.deepEqual(normal.minutes, [{ row: 41, minutes: 5 }, { row: 38, minutes: 6 }]);
+  assert.equal(normal.over, 0);
+  // 減らしきっても残る分は over に
+  const big = fit(30);
+  assert.deepEqual(big.hideRows, [57, 34, 56, 33]);
+  assert.deepEqual(big.minutes, [{ row: 41, minutes: 5 }, { row: 38, minutes: 5 }, { row: 62, minutes: 5 }]);
+  assert.equal(big.over, 9);
+});
+
+test('timeFitMessage', () => {
+  const timing = { tt: [[32, 33, 34], [55, 56, 57]], breakRow: 41, geRows: [38, 62] };
+  assert.equal(gas.timeFitMessage(21 * 60 + 27, 21 * 60 + 15, gas.planTimeFit(12, timing)),
+    '終了予定が 21:27 になるため調整しました：テーブルトピック 2 人減（行を非表示）、休憩 5 分、総合論評 前半 6 分（終了予定 21:15）');
+  assert.equal(gas.timeFitMessage(21 * 60 + 17, 21 * 60 + 14, gas.planTimeFit(2, timing)),
+    '終了予定が 21:17 になるため調整しました：テーブルトピック 1 人減（行を非表示）（終了予定 21:14）');
+});
+
+test('イベント：会長挨拶・ゲスト紹介の後（10 行目の前）。右欄の行番号はそのまま', () => {
+  const m = meeting('384', 257);
+  const plan = gas.buildFillPlan(m, { zoom: ZOOM, events: [{ name: '入会式', position: '会長挨拶・ゲスト紹介の後', minutes: 10, person: '' }] });
+  const c = cellMap(plan);
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.inserts)), [{ after: 9, count: 1, from: 41 }]);
+  assert.equal(c.E10, '入会式');
+  assert.equal(c.J11, m.roles['今夜のトーストマスター']); // TMOE は 1 行下
+  assert.equal(c.O7, m.guests.filter((g) => !g.includes('キャンセル'))[0]); // ゲスト欄は 7 行目から
+  assert.deepEqual(JSON.parse(JSON.stringify(plan.timing)), { endRow: 70, tt: [[33, 34, 35], [56, 57, 58]], breakRow: 42, geRows: [39, 63] });
 });
 
 test('clockMinutes / formatClock', () => {
