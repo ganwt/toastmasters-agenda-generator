@@ -398,7 +398,7 @@ test('イベントとスピーチ 3 本が同じ位置：スピーチのブロ�
   assert.equal(c.F55, gas.formatSpeechTitle(base, 'en')); // 3 本目のタイトル（F50 は C の分ずれて F51、その 4 行下）
 });
 
-test('planTimeFit：テーブルトピック③ → 休憩 → 総合論評 → テーブルトピック②の順に、超過がなくなるまで', () => {
+test('planTimeFit：テーブルトピック③ → 休憩 → 総合論評の順に、超過がなくなるまで（各セッション 2 人は残す）', () => {
   const timing = { tt: [[32, 33, 34], [55, 56, 57]], breakRow: 41, geRows: [38, 62] };
   const fit = (over) => JSON.parse(JSON.stringify(gas.planTimeFit(over, timing)));
   assert.deepEqual(fit(0).hideRows, []);
@@ -410,11 +410,11 @@ test('planTimeFit：テーブルトピック③ → 休憩 → 総合論評 → 
   assert.deepEqual(normal.hideRows, [57, 34]);
   assert.deepEqual(normal.minutes, [{ row: 41, minutes: 5 }, { row: 38, minutes: 6 }]);
   assert.equal(normal.over, 0);
-  // 減らしきっても残る分は over に
+  // 減らしきっても残る分は over に（テーブルトピック ② は自動では減らさない）
   const big = fit(30);
-  assert.deepEqual(big.hideRows, [57, 34, 56, 33]);
+  assert.deepEqual(big.hideRows, [57, 34]);
   assert.deepEqual(big.minutes, [{ row: 41, minutes: 5 }, { row: 38, minutes: 5 }, { row: 62, minutes: 5 }]);
-  assert.equal(big.over, 9);
+  assert.equal(big.over, 15);
 });
 
 test('timeFitMessage', () => {

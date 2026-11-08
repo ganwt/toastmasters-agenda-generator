@@ -453,20 +453,17 @@ function eventRoleWarnings(roles, events, warnings) {
 // 1. テーブルトピック ③ を後半・前半の順に減らす（各セッション 2 人は残す）
 // 2. 休憩を 1 分単位で短くする（10 分 → 最短 5 分）
 // 3. 総合論評を前半・後半の順に 1 分ずつ短くする（7 分 → 最短 5 分）
-// 4. テーブルトピック ② を後半・前半の順に減らす（各セッション 1 人は残す）
+// それでも過ぎる分は自動では減らさない（テーブルトピックを日英どちらかにするなど、TMOE が判断して手直しする）
 // 戻り値：hideRows = 隠すテーブルトピックの行、minutes = 時間を変える行 [{ row, minutes }]、over = 残りの超過分
 function planTimeFit(overMinutes, timing) {
   var over = overMinutes;
   var r = { hideRows: [], minutes: [], tt: 0, breakMinutes: BREAK_MINUTES.normal, geMinutes: [GE_MINUTES.normal, GE_MINUTES.normal] };
-  var dropTableTopics = function (index) {
-    [1, 0].forEach(function (s) {
-      if (over <= 0) return;
-      r.hideRows.push(timing.tt[s][index]);
-      r.tt++;
-      over -= TT_MINUTES;
-    });
-  };
-  dropTableTopics(2);
+  [1, 0].forEach(function (s) {
+    if (over <= 0) return;
+    r.hideRows.push(timing.tt[s][2]);
+    r.tt++;
+    over -= TT_MINUTES;
+  });
   if (over > 0) {
     var cut = Math.min(over, BREAK_MINUTES.normal - BREAK_MINUTES.min);
     r.breakMinutes -= cut;
@@ -484,7 +481,6 @@ function planTimeFit(overMinutes, timing) {
   [0, 1].forEach(function (s) {
     if (r.geMinutes[s] !== GE_MINUTES.normal) r.minutes.push({ row: timing.geRows[s], minutes: r.geMinutes[s] });
   });
-  dropTableTopics(1);
   r.over = over;
   return r;
 }

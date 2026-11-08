@@ -37,7 +37,7 @@ A step-by-step guide with screenshots (Japanese) is in [docs/manual/MANUAL.md](d
 
 - If something changes (e.g. a cancellation), edit the spreadsheet and run ② again (it exports the most recently updated program), or start over from ① (this creates another file with the same name; delete the old one).
 - If a warning says a project description was not found, only the heading is filled in. Paste the description into the spreadsheet if needed.
-- If the meeting would end after 21:15, it is shortened automatically in this order, and a warning is shown: Table Topics (down to two per session) → break (down to 5 min) → General Evaluation (down to 5 min) → Table Topics (down to one per session). Removed Table Topics rows are only hidden; to restore one, unhide the row and set column C (duration) back to 0:03.
+- If the meeting would end after 21:15, it is shortened automatically in this order, and a warning is shown: Table Topics (down to two per session) → break (down to 5 min) → General Evaluation (down to 5 min). If it still runs over, a warning is shown so the TMOE can decide what to do (e.g. Table Topics in only one session). Removed Table Topics rows are only hidden; to restore one, unhide the row and set column C (duration) back to 0:03.
 - To create a program for a meeting other than the next one, use "① 回を指定して作成（mtgid）" and enter the number after `mtgid=` in the meeting detail page URL.
 
 ### Meetings with events (induction ceremony, workshop, …)
@@ -46,7 +46,7 @@ Before running ①, add one row per event to the template's **イベント** (Ev
 
 | 例会回 (meeting no.) | イベント名 (name) | 挿入位置 (position) | 所要時間（分） (minutes) | 担当者 (person) |
 |---|---|---|---|---|
-| 386 | 入会式 | 休憩の前 | 15 | (blank = taken from the meeting page) |
+| 386 | 入会式 | 会長挨拶・ゲスト紹介の後 | 15 | (blank = taken from the meeting page) |
 
 - Choose the position from the dropdown (after the president's greeting and guest introductions / after the first session's speeches / after the first Table Topics / before the break / after the break / after the second session's speeches / after the second Table Topics / before the awards / before the closing).
 - If the person is blank, it is taken from the matching role on the meeting page (e.g. "入会式担当").

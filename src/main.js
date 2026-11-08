@@ -196,7 +196,7 @@ function fitEndTime(sheet, plan) {
   var after = end();
   plan.warnings.push(timeFitMessage(before, after, fit));
   if (after > END_LIMIT) {
-    plan.warnings.push('終了予定が ' + formatClock(after) + ' で、' + formatClock(END_LIMIT) + ' を過ぎています。時間を手直ししてください');
+    plan.warnings.push('終了予定が ' + formatClock(after) + ' で、' + formatClock(END_LIMIT) + ' を過ぎています。テーブルトピックを日英どちらかにするなど、TMOE と相談して手直ししてください');
   }
 }
 
